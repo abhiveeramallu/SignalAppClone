@@ -11,6 +11,8 @@ stored in plaintext). This is for local/demo convenience only.
 
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy.orm import Session
+
 from app.core.security import hash_password
 from app.db.init_db import init_db
 from app.db.session import SessionLocal
@@ -51,8 +53,16 @@ def _add_message(db, conversation: Conversation, sender: User, recipients: list[
     return message
 
 
-def seed() -> None:
-    db = SessionLocal()
+def seed(db: Session | None = None) -> None:
+    """Idempotent: no-ops once any user row exists, so re-running (including
+    on every app startup) never duplicates data. `db` defaults to a new
+    session on the real engine (unchanged CLI behavior below); callers that
+    need a different bind — e.g. app startup honoring a test's
+    dependency-injected database — pass an existing session in explicitly,
+    and remain responsible for closing it themselves."""
+    owns_session = db is None
+    if db is None:
+        db = SessionLocal()
     try:
         if db.query(User).count() > 0:
             print("Database already seeded, skipping.")
@@ -146,7 +156,8 @@ def seed() -> None:
         print("Seeded 5 users, 2 direct conversations, 1 group conversation, 14 messages.")
         print(f"Dev login: any of alice/bob/carol/dave/erin, password={DEV_SEED_PASSWORD!r}")
     finally:
-        db.close()
+        if owns_session:
+            db.close()
 
 
 if __name__ == "__main__":
