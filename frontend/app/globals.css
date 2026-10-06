@@ -1,0 +1,9 @@
+@import "tailwindcss";
+
+/* The (main) app shell locks to the viewport (h-screen) and scrolls
+   internally per-pane — html/body must be full height for that to work
+   without the whole page becoming a second scroll container. */
+html,
+body {
+  height: 100%;
+}
