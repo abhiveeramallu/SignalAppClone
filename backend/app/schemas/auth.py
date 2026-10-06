@@ -11,6 +11,26 @@ class RegisterRequest(BaseModel):
     avatar_url: str | None = Field(default=None, max_length=500)
 
 
+class OtpRequestRequest(BaseModel):
+    """Mock "send OTP" step. Stateless — identifies who the (fake) code would
+    go to for display purposes only; nothing is generated, stored, or sent."""
+
+    username: str | None = None
+    phone_number: str | None = None
+
+
+class OtpRequestResponse(BaseModel):
+    message: str
+    # Deliberately returned in the response: this is a disclosed development
+    # mock, not real verification, so there is nothing to hide (the
+    # assignment explicitly permits a fixed, known OTP).
+    dev_otp: str
+
+
+class RegisterWithOtpRequest(RegisterRequest):
+    otp: str = Field(min_length=4, max_length=4)
+
+
 class LoginRequest(BaseModel):
     username: str | None = None
     phone_number: str | None = None

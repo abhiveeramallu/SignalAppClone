@@ -21,6 +21,21 @@ export interface RegisterPayload {
   avatar_url?: string | null;
 }
 
+export interface OtpRequestPayload {
+  username?: string;
+  phone_number?: string;
+}
+
+export interface OtpRequestResult {
+  message: string;
+  /** Disclosed development mock — not a real sent code. */
+  dev_otp: string;
+}
+
+export interface RegisterWithOtpPayload extends RegisterPayload {
+  otp: string;
+}
+
 export interface LoginPayload {
   username?: string;
   phone_number?: string;
@@ -122,6 +137,21 @@ export const api = {
       body: JSON.stringify(payload),
     });
   },
+  // Mock OTP registration flow (assignment-permitted fixed verification
+  // code) — a separate pair of endpoints from register() above, which
+  // remains available unchanged for anything that doesn't go through OTP.
+  requestRegistrationOtp(payload: OtpRequestPayload): Promise<OtpRequestResult> {
+    return request<OtpRequestResult>("/auth/register/request-otp", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  verifyRegistrationOtp(payload: RegisterWithOtpPayload): Promise<AuthUser> {
+    return request<AuthUser>("/auth/register/verify-otp", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
   login(payload: LoginPayload): Promise<TokenResponse> {
     return request<TokenResponse>("/auth/login", {
       method: "POST",
@@ -134,6 +164,11 @@ export const api = {
 
   getContacts(token: string): Promise<UserSummary[]> {
     return request<UserSummary[]>("/contacts", { headers: authHeaders(token) });
+  },
+  searchUsers(token: string, query: string): Promise<UserSummary[]> {
+    return request<UserSummary[]>(`/users/search?q=${encodeURIComponent(query)}`, {
+      headers: authHeaders(token),
+    });
   },
   addContact(token: string, userId: number): Promise<UserSummary> {
     return request<UserSummary>(`/contacts/${userId}`, { method: "POST", headers: authHeaders(token) });

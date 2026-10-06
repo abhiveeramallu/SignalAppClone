@@ -2,17 +2,27 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.deps import get_current_user
 from app.core.security import create_access_token, hash_password, verify_password
 from app.db.session import get_db
 from app.models import User
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from app.schemas.auth import (
+    LoginRequest,
+    OtpRequestRequest,
+    OtpRequestResponse,
+    RegisterRequest,
+    RegisterWithOtpRequest,
+    TokenResponse,
+    UserResponse,
+)
 
 router = APIRouter()
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> User:
+def _create_user(db: Session, payload: RegisterRequest) -> User:
+    """Shared by /register and /register/verify-otp — one account-creation
+    path, not two, so the uniqueness/commit logic is never duplicated."""
     if db.query(User).filter(User.username == payload.username).first() is not None:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Username already taken")
     if payload.phone_number is not None:
@@ -37,6 +47,30 @@ def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> User:
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Username or phone number already in use")
     db.refresh(user)
     return user
+
+
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def register(payload: RegisterRequest, db: Session = Depends(get_db)) -> User:
+    return _create_user(db, payload)
+
+
+@router.post("/register/request-otp", response_model=OtpRequestResponse)
+def request_registration_otp(payload: OtpRequestRequest) -> OtpRequestResponse:
+    """Mock-only "send OTP" step for the assignment's explicitly-permitted
+    fixed-OTP flow. No SMS provider, no generated code, nothing stored —
+    the value is always the same fixed development OTP, returned directly
+    in the response since there is nothing real to protect here."""
+    return OtpRequestResponse(
+        message="Development verification code ready (mocked — no SMS is sent).",
+        dev_otp=settings.mock_otp_code,
+    )
+
+
+@router.post("/register/verify-otp", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def verify_otp_and_register(payload: RegisterWithOtpRequest, db: Session = Depends(get_db)) -> User:
+    if payload.otp != settings.mock_otp_code:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Incorrect verification code")
+    return _create_user(db, payload)
 
 
 @router.post("/login", response_model=TokenResponse)

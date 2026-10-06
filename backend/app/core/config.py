@@ -16,10 +16,12 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 24  # 24h, convenient for assignment/dev use
 
-    # Fixed mock OTP for the mocked phone-verification flow the assignment allows.
-    # Not currently checked by any endpoint — registration/login use a real
-    # password instead, so there is nothing to gate on it yet.
-    mock_otp_code: str = "123456"
+    # Fixed mock OTP for the registration-verification flow the assignment
+    # explicitly allows ("verification can be mocked with a fixed OTP").
+    # Checked by POST /auth/register/verify-otp. Never generated, stored, or
+    # sent anywhere — it's a single hardcoded value, not real phone
+    # verification, and is deliberately the same for every registration.
+    mock_otp_code: str = "1234"
 
     model_config = SettingsConfigDict(env_file=".env", env_prefix="SIGNAL_")
 

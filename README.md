@@ -6,10 +6,13 @@ This is a Signal-inspired secure messaging platform built as a full-stack assign
 
 **Real Signal Protocol end-to-end encryption is not implemented; encryption is simulated/not implemented as permitted by the assignment.** Messages are transmitted over a standard authenticated REST/WebSocket API and stored as plaintext in the database — this project demonstrates application architecture and real-time messaging mechanics, not production-grade cryptography.
 
+**Phone verification is mocked for this assignment using a fixed development OTP: `1234`. No real SMS verification is performed.**
+
 ## 2. Features
 
 ### Authentication
 - Registration (username, display name, password, optional phone number)
+- Two-step registration with a mocked fixed OTP verification (`1234`) before the account is created — no real SMS is sent
 - Login (by username or phone number)
 - JWT session tokens (bearer auth for REST, sent in the first WebSocket message)
 - bcrypt password hashing
@@ -28,6 +31,7 @@ This is a Signal-inspired secure messaging platform built as a full-stack assign
 - Unread counts (backend-computed, source of truth is the database)
 - Client-side conversation search (name, username, last-message preview)
 - Contacts list with client-side search
+- Discover any registered user by username/display name/phone (`GET /users/search`) and add them as a contact directly from the "New Message" flow
 - Direct-conversation deduplication (reopening a chat with the same user reuses the existing conversation)
 
 ### Groups
@@ -47,7 +51,7 @@ This is a Signal-inspired secure messaging platform built as a full-stack assign
 
 ### Explicitly not implemented
 - Signal Protocol end-to-end encryption
-- Real SMS OTP verification
+- Real SMS OTP verification (mocked with a fixed code instead — see §7)
 - Voice calls
 - Video calls
 - Stories
@@ -107,7 +111,7 @@ backend/
     db/          # engine/session setup, init_db, seed data
     models/      # SQLAlchemy ORM models (one file per table)
     schemas/     # Pydantic request/response models
-    routers/     # REST endpoints (auth, contacts, conversations, messages)
+    routers/     # REST endpoints (auth, contacts, conversations, messages, users)
     services/    # shared business logic (message_service: status rules, creation)
     websocket/   # the /ws endpoint, event dispatch, ConnectionManager
     main.py      # FastAPI app, CORS, router registration
@@ -178,6 +182,16 @@ Registration:  POST /auth/register  →  bcrypt-hash the password  →  insert i
 Login:         POST /auth/login     →  verify bcrypt hash        →  issue a JWT (sub=user_id, exp)
 ```
 
+**Registration also supports a mocked OTP verification flow**, matching the assignment's explicit allowance ("verification can be mocked with a fixed OTP"):
+
+```
+POST /auth/register/request-otp   →  returns a disclosed dev OTP (always "1234"); nothing is sent or stored
+POST /auth/register/verify-otp    →  { ...registration fields, otp }  →  rejects (400) unless otp == "1234"
+                                      →  on success, creates the account exactly like POST /auth/register
+```
+
+This is a **development mock only** — no SMS provider is integrated, no OTP is generated, persisted, or expired; the value is a single fixed constant (`settings.mock_otp_code`, `"1234"`) checked directly against the request. The original `POST /auth/register` endpoint is unchanged and still creates an account directly without requiring an OTP — it's the primitive both the plain and OTP-gated registration paths share internally, and remains what the test suite's fixtures use. The frontend's actual registration screen always goes through the two-step OTP flow.
+
 **Authenticated REST calls** send the token as a bearer header:
 ```
 Authorization: Bearer <token>
@@ -234,7 +248,9 @@ Examples:
 **Auth**
 | Method | Path | Description |
 |---|---|---|
-| POST | `/auth/register` | Create an account |
+| POST | `/auth/register` | Create an account directly (no OTP) |
+| POST | `/auth/register/request-otp` | Mock "send OTP" step — always returns the fixed dev code |
+| POST | `/auth/register/verify-otp` | Verify the fixed OTP, then create the account |
 | POST | `/auth/login` | Exchange credentials for a JWT |
 | GET | `/auth/me` | Resolve the current user from a bearer token |
 
@@ -244,6 +260,11 @@ Examples:
 | GET | `/contacts` | List the current user's contacts |
 | POST | `/contacts/{user_id}` | Add a contact |
 | DELETE | `/contacts/{user_id}` | Remove a contact |
+
+**Users**
+| Method | Path | Description |
+|---|---|---|
+| GET | `/users/search?q=` | Discover registered users by username/display name/phone (excludes self, capped at 20 results) |
 
 **Conversations**
 | Method | Path | Description |
@@ -316,7 +337,7 @@ Password for all seed users: `password123`
 
 ## 12. Testing
 
-**Backend: 163 tests passing.**
+**Backend: 184 tests passing.**
 
 ```bash
 cd backend
@@ -326,7 +347,9 @@ pytest
 
 Test categories:
 - Authentication (registration, login, token handling)
+- Mock OTP registration flow (correct/wrong/missing OTP, duplicate-check still enforced, plain registration unaffected)
 - Contacts (list/add/remove, authorization)
+- User search/discovery (username/display-name match, self-exclusion, result cap, no sensitive fields)
 - Conversations (direct dedup, group creation, listing, detail)
 - Messages (send, persist, paginate, validation)
 - WebSocket (connection lifecycle, auth, real-time delivery, presence)
@@ -364,7 +387,7 @@ All four complete successfully with no errors.
 - JWT is stored in browser `localStorage`, which is the assignment-acceptable approach but is not resistant to XSS the way an httpOnly cookie would be
 - The WebSocket connection manager is in-process/in-memory — it does not survive a process restart and does not span multiple backend processes
 - SQLite is appropriate for assignment/demo scale, not for concurrent production load
-- Phone-based OTP verification is mocked (a fixed, unused code) rather than real SMS delivery
+- Phone-based OTP verification is mocked (a single fixed code, `1234`, checked directly by `POST /auth/register/verify-otp`) rather than real SMS delivery
 
 This application should not be described as production-secure.
 
@@ -381,24 +404,24 @@ No deployment URL exists for this project — it has not been deployed.
 
 ## 15. Assignment Assumptions
 
-- Phone-based OTP is mocked, not real SMS, per the assignment's explicit allowance.
+- Phone-based OTP is mocked with a single fixed development code (`1234`), not real SMS, per the assignment's explicit allowance.
 - Real Signal cryptographic protocol is not implemented, per the assignment's explicit allowance.
 - Voice/video calls are inert UI placeholders only.
 - Stories and linked devices are out of scope and not present at all (not even as placeholders beyond what Settings documents as "Coming soon").
 - SQLite was chosen as the persistence layer for assignment scope; see §17 for a production alternative.
 - Redis/external pub-sub was intentionally omitted — a single in-process `ConnectionManager` is sufficient for a single-process deployment target.
-- Contacts are drawn from known/seeded users; there is no global user-search endpoint (see §16).
+- Contacts can be discovered via `GET /users/search` (username/display name/phone) and added directly from the UI — not limited to seed data.
 - Group membership is modeled through `conversation_participants`, shared with direct conversations rather than a separate group-specific table.
 
 ## 16. Known Limitations
 
 - No real Signal Protocol end-to-end encryption.
-- No real SMS delivery for OTP (mocked/unused).
+- No real SMS delivery for OTP (a single fixed mock code, `1234`, is used instead).
 - No file or media attachments.
 - No voice or video calls.
 - No stories.
 - No linked devices.
-- **Contact discovery is limited**: adding a user as a contact requires already knowing their numeric user ID, because no global user-search endpoint was added. In practice this means the UI can only build on the contact graph already present in the seed data (or contacts added by ID directly through the API). This is a scope boundary, not a bug — building discovery would require a new backend search surface, which was intentionally not added.
+- Registration's OTP step is a single fixed, disclosed development code (`1234`) — it demonstrates the flow the assignment describes, not real verification, and the same code is correct for every registration.
 
 ## 17. Future Improvements
 
@@ -407,6 +430,6 @@ No deployment URL exists for this project — it has not been deployed.
 - Introduce Redis (or another pub/sub broker) to let the WebSocket layer span multiple backend processes/instances
 - Add object storage (e.g. S3-compatible) for message attachments
 - Add push notifications for backgrounded/closed clients
-- Add a proper contact-discovery/search endpoint
+- Replace the mocked OTP with a real SMS provider integration
 - Add refresh-token rotation instead of a single long-lived access token
 - Move the JWT out of `localStorage` into a more XSS-resistant storage strategy (e.g. httpOnly cookie + CSRF protection)

@@ -505,6 +505,7 @@ export function AppShell() {
         open={newConversationOpen}
         onClose={() => setNewConversationOpen(false)}
         onConversationReady={handleConversationReady}
+        onToast={showToast}
       />
       {selectedConversation && selectedConversation.type === "group" && (
         <GroupDetailsModal

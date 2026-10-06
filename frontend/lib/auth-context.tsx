@@ -9,7 +9,16 @@ import {
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { api, setUnauthorizedListener, type AuthUser, type LoginPayload, type RegisterPayload } from "@/lib/api";
+import {
+  api,
+  setUnauthorizedListener,
+  type AuthUser,
+  type LoginPayload,
+  type OtpRequestPayload,
+  type OtpRequestResult,
+  type RegisterPayload,
+  type RegisterWithOtpPayload,
+} from "@/lib/api";
 import { Splash } from "@/components/ui/Splash";
 
 const TOKEN_STORAGE_KEY = "signal_clone_token";
@@ -20,6 +29,8 @@ interface AuthContextValue {
   loading: boolean;
   login: (payload: LoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<AuthUser>;
+  requestOtp: (payload: OtpRequestPayload) => Promise<OtpRequestResult>;
+  verifyOtpAndRegister: (payload: RegisterWithOtpPayload) => Promise<AuthUser>;
   logout: () => void;
 }
 
@@ -70,6 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const register = useCallback((payload: RegisterPayload) => api.register(payload), []);
+  const requestOtp = useCallback((payload: OtpRequestPayload) => api.requestRegistrationOtp(payload), []);
+  const verifyOtpAndRegister = useCallback(
+    (payload: RegisterWithOtpPayload) => api.verifyRegistrationOtp(payload),
+    [],
+  );
 
   const logout = useCallback(() => {
     window.localStorage.removeItem(TOKEN_STORAGE_KEY);
@@ -90,7 +106,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [logout]);
 
   return (
-    <AuthContext.Provider value={{ currentUser, token, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ currentUser, token, loading, login, register, requestOtp, verifyOtpAndRegister, logout }}
+    >
       {loading ? <Splash /> : children}
     </AuthContext.Provider>
   );
