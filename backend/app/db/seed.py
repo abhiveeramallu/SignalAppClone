@@ -1,16 +1,30 @@
 """Populates a freshly-initialized database with sample users, contacts,
 conversations (direct + group) and message history so the app is usable
-immediately. Safe to re-run: skips if users already exist.
+immediately.
+
+Idempotent at the level of each of the five fixed demo accounts, not the
+whole `users` table: on every call, any demo username that doesn't exist
+yet gets created with the shared dev password; a demo username that
+already exists (whether it's the original demo row from an earlier run,
+or — in principle — an unrelated real account someone happens to have
+registered under that name) is never touched, so a password is never
+silently overwritten. This matters specifically because the `users` table
+can be non-empty without the demo accounts actually existing yet (e.g. a
+real user registered through the app before this ever ran) — the previous
+"skip if any user exists" guard would wrongly treat that as "already
+seeded" and leave the demo accounts, including their password123 login,
+missing entirely.
 
 Usage: python -m app.db.seed
 
 DEV CREDENTIALS: every seeded user shares the same development-only password,
 DEV_SEED_PASSWORD below (hashed with the real app password hasher, never
-stored in plaintext). This is for local/demo convenience only.
+stored in plaintext, never logged). This is for local/demo convenience only.
 """
 
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
@@ -20,6 +34,35 @@ from app.models import Contact, Conversation, ConversationParticipant, Message, 
 from app.models.conversation import compute_direct_key
 
 DEV_SEED_PASSWORD = "password123"
+
+# One entry per fixed demo account. `last_seen_offset` is relative to "now"
+# at seed time; omitted for the two users seeded as online.
+_DEMO_USER_SPECS = [
+    {"username": "alice", "phone_number": "+15550000001", "display_name": "Alice Johnson", "is_online": True},
+    {
+        "username": "bob",
+        "phone_number": "+15550000002",
+        "display_name": "Bob Smith",
+        "is_online": False,
+        "last_seen_offset": timedelta(minutes=12),
+    },
+    {"username": "carol", "phone_number": "+15550000003", "display_name": "Carol Davis", "is_online": True},
+    {
+        "username": "dave",
+        "phone_number": "+15550000004",
+        "display_name": "Dave Wilson",
+        "is_online": False,
+        "last_seen_offset": timedelta(hours=2),
+    },
+    {
+        "username": "erin",
+        "phone_number": "+15550000005",
+        "display_name": "Erin Clark",
+        "is_online": False,
+        "last_seen_offset": timedelta(days=1),
+    },
+]
+DEMO_USERNAMES = [spec["username"] for spec in _DEMO_USER_SPECS]
 
 
 def _make_direct_conversation(db, user_a: User, user_b: User) -> Conversation:
@@ -53,38 +96,83 @@ def _add_message(db, conversation: Conversation, sender: User, recipients: list[
     return message
 
 
+def _ensure_demo_users(db: Session, now: datetime) -> tuple[dict[str, User], bool]:
+    """Creates whichever of the five fixed demo accounts don't exist yet,
+    each with the shared dev password — never touches one that's already
+    there. Returns (all five demo users keyed by username, whether any of
+    them already existed before this call)."""
+    existing = {row.username: row for row in db.query(User).filter(User.username.in_(DEMO_USERNAMES)).all()}
+    any_preexisting = len(existing) > 0
+
+    dev_password_hash = hash_password(DEV_SEED_PASSWORD)
+    for spec in _DEMO_USER_SPECS:
+        if spec["username"] in existing:
+            continue
+        last_seen = now - spec["last_seen_offset"] if "last_seen_offset" in spec else None
+        user = User(
+            username=spec["username"],
+            phone_number=spec["phone_number"],
+            display_name=spec["display_name"],
+            is_online=spec["is_online"],
+            last_seen_at=last_seen,
+            password_hash=dev_password_hash,
+        )
+        db.add(user)
+        try:
+            db.flush()  # assigns user.id; surfaces a uniqueness race here, not later at commit
+        except IntegrityError:
+            # Another process created this exact demo user between our
+            # existence check and this insert (e.g. a concurrent worker's
+            # own startup seeding) — not an error, just means it already
+            # exists now; drop this attempt and pick up what's actually there.
+            db.rollback()
+            existing = {row.username: row for row in db.query(User).filter(User.username.in_(DEMO_USERNAMES)).all()}
+            continue
+        existing[spec["username"]] = user
+
+    return existing, any_preexisting
+
+
 def seed(db: Session | None = None) -> None:
-    """Idempotent: no-ops once any user row exists, so re-running (including
-    on every app startup) never duplicates data. `db` defaults to a new
-    session on the real engine (unchanged CLI behavior below); callers that
-    need a different bind — e.g. app startup honoring a test's
-    dependency-injected database — pass an existing session in explicitly,
-    and remain responsible for closing it themselves."""
+    """Ensures the five demo accounts exist (creating only whichever are
+    missing) and, the first time ALL five are created fresh in the same
+    call, also builds the sample contacts/conversations/messages around
+    them. If any demo account already existed, the conversation/message
+    graph is left alone entirely — rebuilding it would either duplicate an
+    existing one or wire up sample history for a row that may not actually
+    be the original demo account, and creating the missing login(s) above
+    is already enough to make the app usable.
+
+    `db` defaults to a new session on the real engine (unchanged CLI
+    behavior below); callers that need a different bind — e.g. app startup
+    honoring a test's dependency-injected database — pass an existing
+    session in explicitly, and remain responsible for closing it themselves.
+    """
     owns_session = db is None
     if db is None:
         db = SessionLocal()
     try:
-        if db.query(User).count() > 0:
-            print("Database already seeded, skipping.")
-            return
-
         # Naive UTC, to match SQLite's CURRENT_TIMESTAMP (used by server_default=func.now()).
         now = datetime.now(timezone.utc).replace(tzinfo=None)
 
-        dev_password_hash = hash_password(DEV_SEED_PASSWORD)
+        users_by_username, any_preexisting = _ensure_demo_users(db, now)
+        db.commit()  # the accounts themselves are durable even if nothing below runs
 
-        alice = User(username="alice", phone_number="+15550000001", display_name="Alice Johnson",
-                     is_online=True, password_hash=dev_password_hash)
-        bob = User(username="bob", phone_number="+15550000002", display_name="Bob Smith",
-                   is_online=False, last_seen_at=now - timedelta(minutes=12), password_hash=dev_password_hash)
-        carol = User(username="carol", phone_number="+15550000003", display_name="Carol Davis",
-                     is_online=True, password_hash=dev_password_hash)
-        dave = User(username="dave", phone_number="+15550000004", display_name="Dave Wilson",
-                    is_online=False, last_seen_at=now - timedelta(hours=2), password_hash=dev_password_hash)
-        erin = User(username="erin", phone_number="+15550000005", display_name="Erin Clark",
-                    is_online=False, last_seen_at=now - timedelta(days=1), password_hash=dev_password_hash)
-        db.add_all([alice, bob, carol, dave, erin])
-        db.flush()  # assign user ids
+        if any(name not in users_by_username for name in DEMO_USERNAMES):
+            # Lost an insert race above and the retry still didn't find it —
+            # leave it for the next call rather than building history around
+            # an incomplete set of users.
+            return
+
+        if any_preexisting:
+            print("Demo accounts already present; created any missing ones, left existing data untouched.")
+            return
+
+        alice = users_by_username["alice"]
+        bob = users_by_username["bob"]
+        carol = users_by_username["carol"]
+        dave = users_by_username["dave"]
+        erin = users_by_username["erin"]
 
         db.add_all(
             [
