@@ -17,7 +17,19 @@ This is a full-stack, Signal-inspired secure messaging platform built for an SDE
 | Auth | JWT (PyJWT) + bcrypt password hashing |
 | Testing | pytest (backend), `tsc`/ESLint/`next build` (frontend) |
 
-## 2. Assignment Compliance
+## 2. Live Demo
+
+**Application:** [https://signal-app-clone.vercel.app](https://signal-app-clone.vercel.app)
+
+**Login:** [https://signal-app-clone.vercel.app/login](https://signal-app-clone.vercel.app/login)
+
+**Backend API:** [https://signal-clone-backend-uhrx.onrender.com](https://signal-clone-backend-uhrx.onrender.com)
+
+**API Docs:** [https://signal-clone-backend-uhrx.onrender.com/docs](https://signal-clone-backend-uhrx.onrender.com/docs)
+
+Frontend is deployed on Vercel; backend is deployed on Render. See §16 for environment variables, CORS, and the deployment's persistence caveats.
+
+## 3. Assignment Compliance
 
 Only requirements that are actually implemented are listed as PASS.
 
@@ -54,12 +66,12 @@ Only requirements that are actually implemented are listed as PASS.
 | WebSocket authorization | First-message `authenticate` handshake; every event handler re-checks conversation membership server-side | PASS |
 | Database initialization | `init_db()` (idempotent `CREATE TABLE IF NOT EXISTS`) runs unconditionally on every backend startup | PASS |
 | Idempotent seed | `db/seed.py` checks each of the 5 demo usernames individually before inserting; safe to run repeatedly | PASS |
-| API documentation | FastAPI's built-in interactive docs at `/docs` and `/openapi.json`, plus the endpoint table in §10 below | PASS |
-| Security | See §14 for the full implemented list and explicit limitations | PASS |
+| API documentation | FastAPI's built-in interactive docs at `/docs` and `/openapi.json`, plus the endpoint table in §11 below | PASS |
+| Security | See §15 for the full implemented list and explicit limitations | PASS |
 
-Not implemented (and not claimed): real Signal Protocol encryption, real SMS delivery, functional voice/video calls, functional stories, linked devices, message reactions/replies, disappearing messages. See §3 "UI / UX" and §16 for how Calls/Stories specifically are handled.
+Not implemented (and not claimed): real Signal Protocol encryption, real SMS delivery, functional voice/video calls, functional stories, linked devices, message reactions/replies, disappearing messages. See §4 "UI / UX" and §17 for how Calls/Stories specifically are handled.
 
-## 3. Features
+## 4. Features
 
 ### Authentication & Onboarding
 
@@ -72,7 +84,7 @@ Not implemented (and not claimed): real Signal Protocol encryption, real SMS del
 - **Login**: by username or phone number (`POST /auth/login`), returns a JWT.
 - **Logout**: clears the token from `localStorage` and disconnects the WebSocket client-side; there is no server-side session/revocation store (JWTs are stateless).
 - **Session restoration**: on load, a stored token is sent to `GET /auth/me`; if valid, the user is restored, otherwise the token is discarded and the app shows the login screen.
-- **Seeded demo users**: `alice`, `bob`, `carol`, `dave`, `erin`, all with password `password123` (see §12). Seeding only creates database rows — it never issues a token or authenticates a session (seed data and an authenticated session are independent).
+- **Seeded demo users**: `alice`, `bob`, `carol`, `dave`, `erin`, all with password `password123` (see §13). Seeding only creates database rows — it never issues a token or authenticates a session (seed data and an authenticated session are independent).
 
 ### Contacts & User Discovery
 
@@ -126,11 +138,11 @@ Not implemented (and not claimed): real Signal Protocol encryption, real SMS del
 - **Responsive layout**: verified at 375/390/430px (mobile) and standard desktop widths — mobile uses list↔chat navigation with a back button; desktop uses a fixed two-pane layout.
 - **Calls and Stories are UI placeholders, not functional features.** Both have a real route (`/calls`, `/stories`) with a polished, Signal-style empty state, but every interactive element (new call, add a story, etc.) shows a "not available yet" toast rather than performing any real action — no fake call history or fake stories are fabricated.
 
-## 4. Screenshots
+## 5. Screenshots
 
 No screenshots currently exist in this repository. Add them to a `screenshots/` directory and reference them here before final submission.
 
-## 5. Architecture
+## 6. Architecture
 
 ```mermaid
 flowchart LR
@@ -161,11 +173,11 @@ flowchart LR
 - **REST** handles all persistent CRUD and history: auth, contacts, user search, conversation/message history, group management, file upload/download.
 - **WebSocket** (`/ws`, one connection per client) handles real-time events only: new messages, delivery/read receipts, typing, group-membership change notifications.
 - **SQLite** is the single persistence layer for both paths — a REST write and a WebSocket-triggered write go through the same SQLAlchemy models.
-- **`ConnectionManager`** (`backend/app/websocket/manager.py`) is a small in-process, in-memory registry mapping `user_id → set of open WebSocket connections`. It is intentionally not backed by Redis or any external pub-sub — this assignment targets a single FastAPI process. A multi-process deployment would need a shared broker (see §18).
+- **`ConnectionManager`** (`backend/app/websocket/manager.py`) is a small in-process, in-memory registry mapping `user_id → set of open WebSocket connections`. It is intentionally not backed by Redis or any external pub-sub — this assignment targets a single FastAPI process. A multi-process deployment would need a shared broker (see §19).
 - **`message_service`** is the one place message creation, attachment validation, and status-rank logic live, shared identically by the REST `POST .../messages` route and the WebSocket `send_message` handler.
-- **`backend/uploads/`** is local filesystem storage, outside the request/response cycle for everything except the two upload endpoints — see §14 for why this is not durable in a deployed environment.
+- **`backend/uploads/`** is local filesystem storage, outside the request/response cycle for everything except the two upload endpoints — see §15 for why this is not durable in a deployed environment.
 
-## 6. Project Structure
+## 7. Project Structure
 
 ```
 backend/
@@ -178,7 +190,7 @@ backend/
     services/    # shared business logic (message_service: creation, attachment validation, status rules)
     websocket/   # the /ws endpoint, event dispatch, ConnectionManager
     main.py      # FastAPI app, lifespan (init_db/seed), CORS, router registration
-  tests/         # pytest suite — one file per feature area (216 tests, see §13)
+  tests/         # pytest suite — one file per feature area (216 tests, see §14)
   requirements.txt
   .env.example
 
@@ -205,7 +217,7 @@ frontend/
   .env.example
 ```
 
-## 7. Database Schema
+## 8. Database Schema
 
 Six tables:
 
@@ -242,7 +254,7 @@ User
         MessageStatus (message_id, user_id, status)
 ```
 
-## 8. Authentication
+## 9. Authentication
 
 ```
 Registration:  POST /auth/register  →  bcrypt-hash the password  →  insert into users
@@ -274,7 +286,7 @@ There is no server-side logout/session-revocation endpoint — sessions are stat
 
 **JWT identity is always authoritative over anything the client sends.** No endpoint accepts a client-supplied `user_id`/`sender_id` to determine whose data to return or whose action to attribute — identity comes only from `get_current_user`, which decodes the bearer token. This was specifically verified for the WebSocket `send_message` path (a client cannot forge another user's sender identity) and for conversation/message access (a non-participant gets `404` regardless of what they claim).
 
-## 9. WebSocket Protocol
+## 10. WebSocket Protocol
 
 **Client → Server:** `authenticate`, `send_message`, `message_delivered`, `mark_read`, `typing_start`, `typing_stop`
 
@@ -331,7 +343,7 @@ Examples:
 { "type": "mark_read", "conversation_id": 3 }
 ```
 
-## 10. API Endpoints
+## 11. API Endpoints
 
 **Auth**
 | Method | Path | Description |
@@ -386,7 +398,7 @@ Plus `GET /health` (liveness check) and the WebSocket endpoint at `/ws`.
 
 **Interactive API docs**: FastAPI auto-generates Swagger UI at `/docs` and the raw OpenAPI schema at `/openapi.json` whenever the backend is running — neither is disabled in this project.
 
-## 11. Local Setup
+## 12. Local Setup
 
 **Backend:**
 ```bash
@@ -417,7 +429,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 
 **File uploads:** `backend/uploads/` is created automatically on first backend startup — no manual step required.
 
-## 12. Seed Credentials
+## 13. Seed Credentials
 
 *Development only — never use these in a real deployment.*
 
@@ -435,7 +447,7 @@ Password for all seed users: `password123`
 
 Seeding only inserts database rows — it never issues a JWT or otherwise authenticates a session. A fresh browser session (or an incognito window) with no stored token is always shown the login/register screen, regardless of what demo data exists in the database.
 
-## 13. Testing
+## 14. Testing
 
 **Backend: 216 tests passing.**
 
@@ -470,7 +482,7 @@ npm run build
 ```
 All three complete with no errors.
 
-## 14. Security Considerations
+## 15. Security Considerations
 
 **Implemented:**
 - bcrypt password hashing
@@ -494,42 +506,133 @@ All three complete with no errors.
 
 This application should not be described as production-secure.
 
-## 15. Deployment Notes
+## 16. Deployment Notes
 
-- **Backend:** runs under FastAPI/Uvicorn (`uvicorn app.main:app`).
-- **Frontend:** a standard Next.js app (`npm run build && npm run start`).
-- Required environment variables: `SIGNAL_JWT_SECRET_KEY`, `SIGNAL_JWT_ALGORITHM`, `SIGNAL_ACCESS_TOKEN_EXPIRE_MINUTES` (backend); `NEXT_PUBLIC_API_URL` (frontend).
-- **A production JWT secret MUST be supplied through environment configuration** — the code ships with an insecure, clearly-labeled development default that must never be reused.
-- **CORS must include the deployed frontend's real origin** — the default only allows `localhost:3000`.
-- SQLite's persistence, and the local-disk attachment storage, both depend entirely on the deployment environment's filesystem — an ephemeral filesystem (common on many PaaS platforms) loses both on redeploy.
+### Live Deployment
 
-No deployment URL exists for this project — it has not been deployed.
+| Component | URL |
+|---|---|
+| Frontend | [https://signal-app-clone.vercel.app](https://signal-app-clone.vercel.app) |
+| Login | [https://signal-app-clone.vercel.app/login](https://signal-app-clone.vercel.app/login) |
+| Backend | [https://signal-clone-backend-uhrx.onrender.com](https://signal-clone-backend-uhrx.onrender.com) |
+| API Documentation | [https://signal-clone-backend-uhrx.onrender.com/docs](https://signal-clone-backend-uhrx.onrender.com/docs) |
+| OpenAPI Schema | [https://signal-clone-backend-uhrx.onrender.com/openapi.json](https://signal-clone-backend-uhrx.onrender.com/openapi.json) |
+| Health Check | [https://signal-clone-backend-uhrx.onrender.com/health](https://signal-clone-backend-uhrx.onrender.com/health) |
 
-## 16. Assignment Assumptions
+```mermaid
+flowchart LR
+    Browser["User Browser"]
+
+    subgraph Vercel["Vercel"]
+        FE["Next.js Frontend"]
+    end
+
+    subgraph Render["Render"]
+        BE["FastAPI Backend"]
+        DB[("SQLite<br/>(filesystem-based)")]
+        FS["Local attachment storage<br/>(backend/uploads/, filesystem-based)"]
+    end
+
+    Browser -- HTTPS --> FE
+    FE -- "REST (HTTPS/JSON)" --> BE
+    FE -- "WebSocket (WSS)" --> BE
+    BE --> DB
+    BE --> FS
+```
+
+- **Frontend** is deployed on **Vercel**, built from this repository's `frontend/` directory (`npm run build && npm run start`, Vercel's own Next.js runtime).
+- **Backend** is deployed on **Render**, running the same `uvicorn app.main:app` entry point used locally.
+- The frontend talks to the backend exactly as it does locally — REST (JSON, bearer JWT) and a single authenticated WebSocket connection — just over the deployed origin instead of `localhost`.
+
+### Environment Variables
+
+**Backend** (`SIGNAL_` prefix, read via `pydantic-settings`):
+
+| Variable | Purpose | Example |
+|---|---|---|
+| `SIGNAL_JWT_SECRET_KEY` | Signs/verifies JWTs — **MUST** be a strong random secret in production; the code ships with an insecure, clearly-labeled development default that must never be reused | `SIGNAL_JWT_SECRET_KEY=<long random string>` |
+| `SIGNAL_JWT_ALGORITHM` | JWT signing algorithm | `SIGNAL_JWT_ALGORITHM=HS256` |
+| `SIGNAL_ACCESS_TOKEN_EXPIRE_MINUTES` | JWT lifetime | `SIGNAL_ACCESS_TOKEN_EXPIRE_MINUTES=1440` |
+| `SIGNAL_CORS_ORIGINS` | Allowed frontend origin(s) — **must be a JSON array**, since the backend config field is a list, not a single string | see below |
+
+**Frontend:**
+
+| Variable | Purpose | Example |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | Backend base URL the frontend calls | see below |
+
+### CORS
+
+The backend only allows requests from origins explicitly listed in `SIGNAL_CORS_ORIGINS` (`backend/app/core/config.py`) — it does not allow all origins. Because that setting is a list, it must be supplied as a **JSON array**, not a bare string:
+
+**Production** (this deployment):
+```
+SIGNAL_CORS_ORIGINS=["https://signal-app-clone.vercel.app"]
+```
+
+**Development** (the default if unset):
+```
+SIGNAL_CORS_ORIGINS=["http://localhost:3000"]
+```
+
+This is wrong and will not work:
+```
+SIGNAL_CORS_ORIGINS=https://signal-app-clone.vercel.app
+```
+
+`http://localhost:3000` is only the development default — the deployed production frontend's real origin must be explicitly allowed for the browser to permit any request to succeed.
+
+### Frontend API URL
+
+**Production** (this deployment):
+```
+NEXT_PUBLIC_API_URL=https://signal-clone-backend-uhrx.onrender.com
+```
+
+**Local development** (see §12):
+```
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+### Persistence caveats (still apply to this deployment)
+
+- SQLite's persistence, and the local-disk attachment storage (`backend/uploads/`), both depend entirely on the deployment environment's filesystem. **Render's filesystem is ephemeral** — both the database and any uploaded files are lost on redeploy/restart.
+- The WebSocket `ConnectionManager` is in-process/in-memory — it does not survive a backend restart and does not span multiple backend instances.
+- **This deployment is suitable for the assignment/demo, not durable production infrastructure.** It does not have persistent production-grade database storage — treat any data entered against the live URLs above as temporary.
+
+### Assignment Deliverables
+
+- **Source code:** [https://github.com/abhiveeramallu/SignalAppClone](https://github.com/abhiveeramallu/SignalAppClone)
+- **Deployed application:** [https://signal-app-clone.vercel.app](https://signal-app-clone.vercel.app)
+- **Backend API:** [https://signal-clone-backend-uhrx.onrender.com](https://signal-clone-backend-uhrx.onrender.com)
+
+This hosted deployment is the live demo for this assignment submission.
+
+## 17. Assignment Assumptions
 
 - Phone-based OTP is mocked with a single fixed development code (`1234`), not real SMS, per the assignment's explicit allowance.
 - Real Signal cryptographic protocol is not implemented, per the assignment's explicit allowance.
 - Voice/video calls have a dedicated `/calls` route with a Signal-style UI, but every action is an inert "not available yet" placeholder — no real calling is implemented.
 - Stories has a dedicated `/stories` route with a Signal-style UI (My Story entry, empty state), but every action is an inert "not available yet" placeholder — no real stories backend exists.
 - Linked devices are out of scope and not present at all, not even as a placeholder route.
-- SQLite was chosen as the persistence layer for assignment scope; see §18 for a production alternative.
+- SQLite was chosen as the persistence layer for assignment scope; see §19 for a production alternative.
 - Redis/external pub-sub was intentionally omitted — a single in-process `ConnectionManager` is sufficient for a single-process deployment target.
-- Local disk was chosen for attachment storage for assignment scope; see §18 for a production alternative.
+- Local disk was chosen for attachment storage for assignment scope; see §19 for a production alternative.
 - Contacts can be discovered via `GET /users/search` (username/display name/phone) and added directly from the UI — not limited to seed data.
 - Group membership is modeled through `conversation_participants`, shared with direct conversations rather than a separate group-specific table.
 
-## 17. Known Limitations
+## 18. Known Limitations
 
 - No real Signal Protocol end-to-end encryption.
 - No real SMS delivery for OTP (a single fixed mock code, `1234`, is used instead).
-- File attachments use local disk storage, not durable object storage — lost on redeploy to an ephemeral filesystem (see §14/§15).
-- No functional voice or video calls (UI placeholder only — see §16).
-- No functional stories (UI placeholder only — see §16).
+- File attachments use local disk storage, not durable object storage — lost on redeploy to an ephemeral filesystem (see §15/§16).
+- No functional voice or video calls (UI placeholder only — see §17).
+- No functional stories (UI placeholder only — see §17).
 - No linked devices.
 - Registration's OTP step is a single fixed, disclosed development code (`1234`) — it demonstrates the flow the assignment describes, not real verification, and the same code is correct for every registration.
 - A single uploaded file per message; no multi-attachment messages.
 
-## 18. Future Improvements
+## 19. Future Improvements
 
 - Implement the real Signal Protocol for genuine end-to-end encryption
 - Move persistence to PostgreSQL for production-scale concurrent access
