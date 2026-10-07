@@ -7,12 +7,27 @@ function typingText(users: TypingUser[]): string {
   return `${names.length} people are typing…`;
 }
 
+function TypingDots() {
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-hidden="true">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground"
+          style={{ animationDelay: `${i * 120}ms`, animationDuration: "900ms" }}
+        />
+      ))}
+    </span>
+  );
+}
+
 export function TypingIndicator({ users }: { users: TypingUser[] }) {
   if (users.length === 0) return null;
 
   return (
-    <div className="border-t border-neutral-100 bg-neutral-50 px-4 py-1.5 sm:px-6">
-      <p className="text-xs italic text-neutral-500">{typingText(users)}</p>
+    <div className="flex items-center gap-2 border-t border-border bg-background px-4 py-1.5 sm:px-6">
+      <TypingDots />
+      <p className="text-xs text-muted-foreground">{typingText(users)}</p>
     </div>
   );
 }

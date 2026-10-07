@@ -36,19 +36,17 @@ export function MessageBubble({ message, currentUserId, showSenderName }: Messag
   return (
     <div className={`flex ${isOutgoing ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[75%] rounded-2xl px-3.5 py-2 sm:max-w-[65%] ${
+        className={`max-w-[75%] rounded-2xl px-3 py-1.5 sm:max-w-[65%] ${
           isOutgoing
-            ? "rounded-br-md bg-blue-600 text-white"
-            : "rounded-bl-md border border-neutral-200 bg-white text-neutral-900"
+            ? "rounded-br-md bg-message-outgoing text-message-outgoing-foreground"
+            : "rounded-bl-md bg-message-incoming text-message-incoming-foreground"
         }`}
       >
-        {showSenderName && (
-          <p className="mb-0.5 text-xs font-semibold text-blue-600">{message.sender.display_name}</p>
-        )}
-        <p className="whitespace-pre-wrap break-words text-sm">{message.content}</p>
+        {showSenderName && <p className="mb-0.5 text-xs font-semibold text-primary">{message.sender.display_name}</p>}
+        <p className="whitespace-pre-wrap break-words text-[14.5px] leading-snug">{message.content}</p>
         <div
-          className={`mt-1 flex items-center justify-end gap-1 text-[11px] ${
-            isOutgoing ? "text-blue-100" : "text-neutral-400"
+          className={`mt-0.5 flex items-center justify-end gap-1 text-[11px] ${
+            isOutgoing ? "text-message-outgoing-foreground/70" : "text-muted-foreground"
           }`}
         >
           <span>{formatMessageTime(message.created_at)}</span>
@@ -57,7 +55,7 @@ export function MessageBubble({ message, currentUserId, showSenderName }: Messag
               {message.status === "sent" ? (
                 <SingleCheck />
               ) : (
-                <DoubleCheck className={message.status === "read" ? "text-sky-200" : undefined} />
+                <DoubleCheck className={message.status === "read" ? "text-primary" : undefined} />
               )}
             </span>
           )}

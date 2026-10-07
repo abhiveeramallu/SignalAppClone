@@ -21,7 +21,7 @@ export function TextField({
 }: TextFieldProps) {
   return (
     <div>
-      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-neutral-700">
+      <label htmlFor={id} className="mb-1.5 block text-sm font-medium text-muted-foreground">
         {label}
       </label>
       <input
@@ -33,7 +33,7 @@ export function TextField({
         required={required}
         minLength={minLength}
         autoComplete={autoComplete}
-        className="block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+        className="block w-full rounded-lg border border-transparent bg-input px-3 py-2 text-sm text-input-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
       />
     </div>
   );

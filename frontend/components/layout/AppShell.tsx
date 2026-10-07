@@ -469,7 +469,7 @@ export function AppShell() {
   const typingUsers = selectedId != null ? (typingByConversation[selectedId] ?? []) : [];
 
   return (
-    <div className="flex h-screen overflow-hidden bg-white">
+    <>
       <Sidebar
         conversations={conversations}
         conversationsLoading={conversationsLoading}
@@ -518,6 +518,6 @@ export function AppShell() {
           onToast={showToast}
         />
       )}
-    </div>
+    </>
   );
 }

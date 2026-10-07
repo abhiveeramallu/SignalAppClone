@@ -1,9 +1,134 @@
 @import "tailwindcss";
 
+/* Semantic theme tokens. :root holds the light values (the default); the
+   [data-theme="dark"] block overrides them for dark mode. Every component
+   reaches these through the Tailwind utilities generated below (bg-surface,
+   text-muted-foreground, border-border, ...) rather than hard-coded
+   neutral-* shades, so one JSX tree works unmodified in both themes. */
+:root {
+  --background: #ffffff;
+  --foreground: #18181b;
+
+  --sidebar: #f7f7f8;
+  --sidebar-foreground: #18181b;
+  --sidebar-hover: #ececee;
+  --sidebar-active: #e7f0ff;
+
+  --surface: #ffffff;
+  --surface-foreground: #18181b;
+  --surface-hover: #f4f4f5;
+  --surface-active: #eef2ff;
+
+  --border: #e4e4e7;
+  --muted: #f4f4f5;
+  --muted-foreground: #71717a;
+
+  --primary: #2563eb;
+  --primary-foreground: #ffffff;
+
+  --input: #f4f4f5;
+  --input-foreground: #18181b;
+
+  --message-incoming: #f1f2f4;
+  --message-incoming-foreground: #18181b;
+  --message-outgoing: #2563eb;
+  --message-outgoing-foreground: #ffffff;
+
+  --danger: #dc2626;
+  --danger-foreground: #ffffff;
+  --danger-muted: #fef2f2;
+  --success: #16a34a;
+  --warning: #d97706;
+  --warning-muted: #fffbeb;
+}
+
+:root[data-theme="dark"] {
+  --background: #000000;
+  --foreground: #e4e4e7;
+
+  --sidebar: #17171a;
+  --sidebar-foreground: #e4e4e7;
+  --sidebar-hover: #27272a;
+  --sidebar-active: #27272a;
+
+  --surface: #19191c;
+  --surface-foreground: #e4e4e7;
+  --surface-hover: #27272a;
+  --surface-active: #2f2f33;
+
+  --border: #27272a;
+  --muted: #27272a;
+  --muted-foreground: #9f9fa8;
+
+  --primary: #3b82f6;
+  --primary-foreground: #ffffff;
+
+  --input: #232326;
+  --input-foreground: #e4e4e7;
+
+  --message-incoming: #232326;
+  --message-incoming-foreground: #e4e4e7;
+  --message-outgoing: #33333a;
+  --message-outgoing-foreground: #f0f0f2;
+
+  --danger: #ef4444;
+  --danger-foreground: #ffffff;
+  --danger-muted: rgba(239, 68, 68, 0.12);
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --warning-muted: rgba(245, 158, 11, 0.12);
+}
+
+/* Registers the variables above as Tailwind utilities (bg-background,
+   text-foreground, bg-sidebar-hover, ...). `inline` keeps each utility
+   referencing the custom property at runtime instead of baking in a value
+   at build time, which is what lets data-theme toggle every class at once. */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-hover: var(--sidebar-hover);
+  --color-sidebar-active: var(--sidebar-active);
+
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+  --color-surface-hover: var(--surface-hover);
+  --color-surface-active: var(--surface-active);
+
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-input: var(--input);
+  --color-input-foreground: var(--input-foreground);
+
+  --color-message-incoming: var(--message-incoming);
+  --color-message-incoming-foreground: var(--message-incoming-foreground);
+  --color-message-outgoing: var(--message-outgoing);
+  --color-message-outgoing-foreground: var(--message-outgoing-foreground);
+
+  --color-danger: var(--danger);
+  --color-danger-foreground: var(--danger-foreground);
+  --color-danger-muted: var(--danger-muted);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-warning-muted: var(--warning-muted);
+}
+
 /* The (main) app shell locks to the viewport (h-screen) and scrolls
    internally per-pane — html/body must be full height for that to work
    without the whole page becoming a second scroll container. */
 html,
 body {
   height: 100%;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
 }

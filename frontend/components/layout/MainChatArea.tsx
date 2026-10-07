@@ -2,6 +2,7 @@ import { ChatHeader } from "@/components/chat/ChatHeader";
 import { MessageList } from "@/components/chat/MessageList";
 import { MessageComposer } from "@/components/chat/MessageComposer";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
+import { ChatsIcon } from "@/components/ui/icons";
 import type { ConnectionState, TypingUser } from "@/lib/ws";
 import type { ConversationPreview, Message } from "@/lib/types";
 
@@ -47,7 +48,7 @@ export function MainChatArea({
   hidden,
 }: MainChatAreaProps) {
   return (
-    <section className={`${hidden ? "hidden" : "flex"} min-w-0 flex-1 flex-col md:flex`}>
+    <section className={`${hidden ? "hidden" : "flex"} min-w-0 flex-1 flex-col bg-background md:flex`}>
       {conversation ? (
         <>
           <ChatHeader
@@ -86,12 +87,12 @@ export function MainChatArea({
 
 function EmptyState() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-2 bg-neutral-50 px-6 text-center">
-      <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-2xl font-semibold text-white shadow-sm">
-        S
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 bg-background px-6 text-center">
+      <div className="mb-3 flex h-20 w-20 items-center justify-center rounded-full border-2 border-dashed border-muted-foreground/40 text-primary">
+        <ChatsIcon active className="h-9 w-9" />
       </div>
-      <p className="text-base font-semibold text-neutral-900">Select a conversation</p>
-      <p className="max-w-xs text-sm text-neutral-500">Choose a chat from the list to start messaging.</p>
+      <p className="text-lg font-bold text-foreground">Welcome to Signal</p>
+      <p className="max-w-xs text-sm text-muted-foreground">Choose a chat from the list to start messaging.</p>
     </div>
   );
 }

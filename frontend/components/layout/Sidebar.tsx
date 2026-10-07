@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { UserProfileMenu } from "@/components/profile/UserProfileMenu";
+import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
 import { SearchInput } from "@/components/ui/SearchInput";
-import { ConversationList } from "@/components/conversation-list/ConversationList";
+import { ConversationList, type ConversationFilter } from "@/components/conversation-list/ConversationList";
+import { ComposeIcon, MoreIcon, FilterIcon } from "@/components/ui/icons";
 import type { ConnectionState } from "@/lib/ws";
 import type { ConversationPreview } from "@/lib/types";
 
@@ -27,6 +29,12 @@ const CONNECTION_LABEL: Partial<Record<ConnectionState, string>> = {
   disconnected: "Offline",
 };
 
+const FILTERS: { value: ConversationFilter; label: string }[] = [
+  { value: "all", label: "All" },
+  { value: "unread", label: "Unread" },
+  { value: "groups", label: "Groups" },
+];
+
 export function Sidebar({
   conversations,
   conversationsLoading,
@@ -37,39 +45,133 @@ export function Sidebar({
   connectionState,
   hidden,
 }: SidebarProps) {
+  const { logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
+  const [filter, setFilter] = useState<ConversationFilter>("all");
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const connectionLabel = CONNECTION_LABEL[connectionState];
+
+  useEffect(() => {
+    if (!filterOpen && !menuOpen) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (filterOpen && filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setFilterOpen(false);
+      }
+      if (menuOpen && menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [filterOpen, menuOpen]);
 
   return (
     <aside
-      className={`${hidden ? "hidden" : "flex"} w-full flex-col border-r border-neutral-200 bg-white md:flex md:w-[360px] md:shrink-0`}
+      className={`${hidden ? "hidden" : "flex"} w-full flex-col border-r border-border bg-sidebar md:flex md:w-[360px] md:shrink-0`}
     >
-      <div className="flex items-center gap-2 border-b border-neutral-200 p-3">
-        <div className="min-w-0 flex-1">
-          <UserProfileMenu />
-        </div>
+      <div className="flex h-16 items-center gap-1 px-4">
+        <h1 className="min-w-0 flex-1 truncate text-xl font-bold text-sidebar-foreground">Chats</h1>
         <button
           type="button"
           onClick={onNewConversation}
           aria-label="New message"
           title="New message"
-          className="shrink-0 rounded-lg p-2 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"
+          className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         >
-          <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-            <path d="M5.433 13.917l1.262-3.155A4 4 0 017.58 9.42l6.92-6.918a2.121 2.121 0 013 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 01-.65-.65z" />
-            <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0010 3H4.75A2.75 2.75 0 002 5.75v9.5A2.75 2.75 0 004.75 18h9.5A2.75 2.75 0 0017 15.25V10a.75.75 0 00-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5z" />
-          </svg>
+          <ComposeIcon className="h-5 w-5" />
         </button>
+        <div ref={menuRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((prev) => !prev)}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label="More options"
+            title="More options"
+            className="rounded-full p-2 text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <MoreIcon className="h-5 w-5" />
+          </button>
+          {menuOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-xl"
+            >
+              <Link
+                href="/settings"
+                role="menuitem"
+                onClick={() => setMenuOpen(false)}
+                className="block w-full px-3 py-2 text-left text-sm text-surface-foreground hover:bg-surface-hover"
+              >
+                Settings
+              </Link>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={logout}
+                className="block w-full px-3 py-2 text-left text-sm text-danger hover:bg-surface-hover"
+              >
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {connectionLabel && (
-        <p className="border-b border-neutral-200 bg-amber-50 px-3 py-1.5 text-center text-xs font-medium text-amber-700">
+        <p className="border-b border-border bg-warning-muted px-3 py-1.5 text-center text-xs font-medium text-warning">
           {connectionLabel}
         </p>
       )}
 
-      <div className="border-b border-neutral-200 p-3">
-        <SearchInput value={searchQuery} onChange={setSearchQuery} />
+      <div className="flex items-center gap-2 px-3 pb-3">
+        <div className="min-w-0 flex-1">
+          <SearchInput value={searchQuery} onChange={setSearchQuery} />
+        </div>
+        <div ref={filterRef} className="relative shrink-0">
+          <button
+            type="button"
+            onClick={() => setFilterOpen((prev) => !prev)}
+            aria-haspopup="menu"
+            aria-expanded={filterOpen}
+            aria-label="Filter conversations"
+            title="Filter"
+            className={`flex h-9 w-9 items-center justify-center rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+              filter !== "all"
+                ? "bg-sidebar-active text-primary"
+                : "text-muted-foreground hover:bg-sidebar-hover hover:text-sidebar-foreground"
+            }`}
+          >
+            <FilterIcon className="h-5 w-5" />
+          </button>
+          {filterOpen && (
+            <div
+              role="menu"
+              className="absolute right-0 top-full z-20 mt-1 w-36 overflow-hidden rounded-xl border border-border bg-surface py-1 shadow-xl"
+            >
+              {FILTERS.map((f) => (
+                <button
+                  key={f.value}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={filter === f.value}
+                  onClick={() => {
+                    setFilter(f.value);
+                    setFilterOpen(false);
+                  }}
+                  className={`block w-full px-3 py-2 text-left text-sm hover:bg-surface-hover ${
+                    filter === f.value ? "text-primary" : "text-surface-foreground"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <ConversationList
@@ -77,6 +179,7 @@ export function Sidebar({
         loading={conversationsLoading}
         error={conversationsError}
         searchQuery={searchQuery}
+        filter={filter}
         selectedId={selectedId}
         onSelect={onSelect}
       />

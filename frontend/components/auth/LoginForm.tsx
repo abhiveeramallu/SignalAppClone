@@ -40,15 +40,15 @@ export function LoginForm() {
     <form
       onSubmit={handleSubmit}
       noValidate
-      className="space-y-5 rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm"
+      className="space-y-5 rounded-2xl border border-border bg-surface p-8 shadow-sm"
     >
       <div>
-        <h2 className="text-lg font-semibold text-neutral-900">Welcome back</h2>
-        <p className="mt-1 text-sm text-neutral-500">Sign in to continue to your conversations.</p>
+        <h2 className="text-lg font-semibold text-surface-foreground">Welcome back</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Sign in to continue to your conversations.</p>
       </div>
 
       {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-lg bg-danger-muted px-3 py-2 text-sm text-danger">
           {error}
         </p>
       )}
@@ -75,9 +75,9 @@ export function LoginForm() {
         Sign in
       </Button>
 
-      <p className="text-center text-sm text-neutral-500">
+      <p className="text-center text-sm text-muted-foreground">
         Don&apos;t have an account?{" "}
-        <Link href="/register" className="font-medium text-blue-600 hover:text-blue-700">
+        <Link href="/register" className="font-medium text-primary hover:opacity-80">
           Create one
         </Link>
       </p>

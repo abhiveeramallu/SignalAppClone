@@ -8,6 +8,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { SearchInput } from "@/components/ui/SearchInput";
 import { Spinner } from "@/components/ui/Spinner";
+import { CloseIcon } from "@/components/ui/icons";
 
 interface NewConversationModalProps {
   open: boolean;
@@ -209,7 +210,7 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4"
+      className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 px-4"
       onClick={onClose}
       role="presentation"
     >
@@ -218,15 +219,15 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
         aria-modal="true"
         aria-label={mode === "direct" ? "New message" : "New group"}
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[32rem] w-full max-w-sm flex-col rounded-2xl border border-neutral-200 bg-white shadow-lg"
+        className="flex max-h-[32rem] w-full max-w-sm flex-col rounded-2xl border border-border bg-surface shadow-lg"
       >
-        <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
-          <div className="flex gap-1 rounded-lg bg-neutral-100 p-0.5">
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <div className="flex gap-1 rounded-lg bg-muted p-0.5">
             <button
               type="button"
               onClick={() => setMode("direct")}
               className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
-                mode === "direct" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"
+                mode === "direct" ? "bg-surface text-surface-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
               Message
@@ -235,7 +236,7 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
               type="button"
               onClick={() => setMode("group")}
               className={`rounded-md px-3 py-1 text-xs font-semibold transition-colors ${
-                mode === "group" ? "bg-white text-neutral-900 shadow-sm" : "text-neutral-500"
+                mode === "group" ? "bg-surface text-surface-foreground shadow-sm" : "text-muted-foreground"
               }`}
             >
               Group
@@ -245,23 +246,21 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-lg p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+            className="rounded-lg p-1 text-muted-foreground hover:bg-surface-hover hover:text-surface-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
-            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-            </svg>
+            <CloseIcon className="h-5 w-5" />
           </button>
         </div>
 
         {mode === "group" && (
-          <div className="border-b border-neutral-200 p-3">
+          <div className="border-b border-border p-3">
             <input
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
               placeholder="Group name"
               maxLength={255}
               aria-label="Group name"
-              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm text-neutral-900 placeholder:text-neutral-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+              className="w-full rounded-lg border border-transparent bg-input px-3 py-2 text-sm text-input-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
             />
           </div>
         )}
@@ -275,18 +274,18 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
         </div>
 
         <div className="flex-1 overflow-y-auto px-2 py-2">
-          {loading && <p className="px-2 py-4 text-center text-sm text-neutral-500">Loading contacts…</p>}
+          {loading && <p className="px-2 py-4 text-center text-sm text-muted-foreground">Loading contacts…</p>}
           {error && (
-            <p role="alert" className="mx-2 mb-2 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p role="alert" className="mx-2 mb-2 rounded-lg bg-danger-muted px-3 py-2 text-sm text-danger">
               {error}
             </p>
           )}
 
           {mode === "direct" && isSearchingPeople ? (
             <>
-              {searching && <p className="px-2 py-4 text-center text-sm text-neutral-500">Searching…</p>}
+              {searching && <p className="px-2 py-4 text-center text-sm text-muted-foreground">Searching…</p>}
               {!searching && searchResults.length === 0 && (
-                <p className="px-2 py-4 text-center text-sm text-neutral-500">No people found.</p>
+                <p className="px-2 py-4 text-center text-sm text-muted-foreground">No people found.</p>
               )}
               {searchResults.map((user) =>
                 isContact(user.id) ? (
@@ -295,33 +294,33 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
                     type="button"
                     onClick={() => handleSelectDirect(user)}
                     disabled={creatingId !== null}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Avatar name={user.display_name} imageUrl={user.avatar_url} online={user.is_online} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-neutral-900">
+                      <span className="block truncate text-sm font-semibold text-surface-foreground">
                         {user.display_name}
                       </span>
-                      <span className="block truncate text-xs text-neutral-500">@{user.username}</span>
+                      <span className="block truncate text-xs text-muted-foreground">@{user.username}</span>
                     </span>
-                    {creatingId === user.id && <Spinner className="h-4 w-4 text-blue-600" />}
+                    {creatingId === user.id && <Spinner className="h-4 w-4 text-primary" />}
                   </button>
                 ) : (
                   <div key={user.id} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5">
                     <Avatar name={user.display_name} imageUrl={user.avatar_url} online={user.is_online} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-neutral-900">
+                      <span className="block truncate text-sm font-semibold text-surface-foreground">
                         {user.display_name}
                       </span>
-                      <span className="block truncate text-xs text-neutral-500">@{user.username}</span>
+                      <span className="block truncate text-xs text-muted-foreground">@{user.username}</span>
                     </span>
                     <button
                       type="button"
                       onClick={() => handleAddContact(user)}
                       disabled={addingContactId !== null}
-                      className="shrink-0 rounded-lg bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-600 transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      className="shrink-0 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {addingContactId === user.id ? <Spinner className="h-4 w-4 text-blue-600" /> : "Add contact"}
+                      {addingContactId === user.id ? <Spinner className="h-4 w-4 text-primary" /> : "Add contact"}
                     </button>
                   </div>
                 ),
@@ -330,7 +329,7 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
           ) : (
             <>
               {!loading && filtered.length === 0 && (
-                <p className="px-2 py-4 text-center text-sm text-neutral-500">
+                <p className="px-2 py-4 text-center text-sm text-muted-foreground">
                   {contacts.length === 0
                     ? mode === "direct"
                       ? "You don't have any contacts yet. Search for people above to add one."
@@ -345,34 +344,34 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
                     type="button"
                     onClick={() => handleSelectDirect(contact)}
                     disabled={creatingId !== null}
-                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-surface-hover disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     <Avatar name={contact.display_name} imageUrl={contact.avatar_url} online={contact.is_online} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-neutral-900">
+                      <span className="block truncate text-sm font-semibold text-surface-foreground">
                         {contact.display_name}
                       </span>
-                      <span className="block truncate text-xs text-neutral-500">@{contact.username}</span>
+                      <span className="block truncate text-xs text-muted-foreground">@{contact.username}</span>
                     </span>
-                    {creatingId === contact.id && <Spinner className="h-4 w-4 text-blue-600" />}
+                    {creatingId === contact.id && <Spinner className="h-4 w-4 text-primary" />}
                   </button>
                 ) : (
                   <label
                     key={contact.id}
-                    className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-neutral-100"
+                    className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-surface-hover"
                   >
                     <input
                       type="checkbox"
                       checked={selectedIds.has(contact.id)}
                       onChange={() => toggleSelected(contact.id)}
-                      className="h-4 w-4 shrink-0 rounded border-neutral-300 text-blue-600 focus:ring-blue-500/30"
+                      className="h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary/30"
                     />
                     <Avatar name={contact.display_name} imageUrl={contact.avatar_url} online={contact.is_online} />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-neutral-900">
+                      <span className="block truncate text-sm font-semibold text-surface-foreground">
                         {contact.display_name}
                       </span>
-                      <span className="block truncate text-xs text-neutral-500">@{contact.username}</span>
+                      <span className="block truncate text-xs text-muted-foreground">@{contact.username}</span>
                     </span>
                   </label>
                 ),
@@ -382,7 +381,7 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
         </div>
 
         {mode === "group" && (
-          <div className="border-t border-neutral-200 p-3">
+          <div className="border-t border-border p-3">
             <Button
               onClick={handleCreateGroup}
               loading={creatingGroup}

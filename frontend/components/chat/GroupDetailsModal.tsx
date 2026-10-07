@@ -9,6 +9,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Spinner } from "@/components/ui/Spinner";
 import { AddMemberModal } from "@/components/chat/AddMemberModal";
+import { CloseIcon, PencilIcon, PlusIcon, TrashIcon } from "@/components/ui/icons";
 
 interface GroupDetailsModalProps {
   open: boolean;
@@ -184,40 +185,38 @@ export function GroupDetailsModal({
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/30 px-4" onClick={onClose} role="presentation">
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/50 px-4" onClick={onClose} role="presentation">
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Group details"
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[32rem] w-full max-w-sm flex-col rounded-2xl border border-neutral-200 bg-white shadow-lg"
+        className="flex max-h-[32rem] w-full max-w-sm flex-col rounded-2xl border border-border bg-surface shadow-lg"
       >
-        <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
-          <h2 className="text-sm font-semibold text-neutral-900">Group details</h2>
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+          <h2 className="text-sm font-semibold text-surface-foreground">Group details</h2>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-lg p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+            className="rounded-lg p-1 text-muted-foreground hover:bg-surface-hover hover:text-surface-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
-            <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-            </svg>
+            <CloseIcon className="h-5 w-5" />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {loading && !detail && <p className="px-4 py-6 text-center text-sm text-neutral-500">Loading…</p>}
+          {loading && !detail && <p className="px-4 py-6 text-center text-sm text-muted-foreground">Loading…</p>}
           {error && !detail && (
-            <p role="alert" className="mx-4 mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            <p role="alert" className="mx-4 mt-3 rounded-lg bg-danger-muted px-3 py-2 text-sm text-danger">
               {error}
             </p>
           )}
 
           {detail && (
             <>
-              <div className="flex flex-col items-center gap-2 border-b border-neutral-100 px-4 py-5">
-                <Avatar name={detail.name ?? "Group"} imageUrl={detail.avatar_url} />
+              <div className="flex flex-col items-center gap-2 border-b border-border px-4 py-6">
+                <Avatar name={detail.name ?? "Group"} imageUrl={detail.avatar_url} size="lg" />
                 {renaming ? (
                   <div className="flex w-full items-center gap-2">
                     <input
@@ -225,7 +224,7 @@ export function GroupDetailsModal({
                       value={renameValue}
                       onChange={(e) => setRenameValue(e.target.value)}
                       maxLength={255}
-                      className="min-w-0 flex-1 rounded-lg border border-neutral-300 px-2.5 py-1.5 text-center text-sm font-semibold text-neutral-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+                      className="min-w-0 flex-1 rounded-lg border border-border bg-input px-2.5 py-1.5 text-center text-sm font-semibold text-input-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                     />
                     <Button onClick={saveRename} loading={renameSaving} disabled={!renameValue.trim()} className="px-3 py-1.5 text-xs">
                       Save
@@ -233,49 +232,45 @@ export function GroupDetailsModal({
                     <button
                       type="button"
                       onClick={() => setRenaming(false)}
-                      className="rounded-lg px-2 py-1.5 text-xs font-semibold text-neutral-500 hover:bg-neutral-100"
+                      className="rounded-lg px-2 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-surface-hover"
                     >
                       Cancel
                     </button>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    <p className="text-base font-semibold text-neutral-900">{detail.name}</p>
+                    <p className="text-base font-semibold text-surface-foreground">{detail.name}</p>
                     {isAdmin && (
                       <button
                         type="button"
                         onClick={startRename}
                         aria-label="Edit group name"
-                        className="rounded-lg p-1 text-neutral-400 hover:bg-neutral-100 hover:text-neutral-600"
+                        className="rounded-lg p-1 text-muted-foreground hover:bg-surface-hover hover:text-surface-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                       >
-                        <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-                        </svg>
+                        <PencilIcon className="h-4 w-4" />
                       </button>
                     )}
                   </div>
                 )}
-                <p className="text-xs text-neutral-500">{detail.member_count ?? participants.length} members</p>
+                <p className="text-xs text-muted-foreground">{detail.member_count ?? participants.length} members</p>
               </div>
 
               {isAdmin && (
-                <div className="border-b border-neutral-100 px-4 py-3">
+                <div className="border-b border-border px-4 py-3">
                   <button
                     type="button"
                     onClick={() => setAddMemberOpen(true)}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-blue-300 py-2 text-sm font-semibold text-blue-600 hover:bg-blue-50"
+                    className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-primary/40 py-2 text-sm font-semibold text-primary hover:bg-primary/10"
                   >
-                    <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                      <path d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" />
-                    </svg>
+                    <PlusIcon className="h-4 w-4" />
                     Add member
                   </button>
                 </div>
               )}
 
               {pendingRemoval && (
-                <div className="border-b border-neutral-100 bg-amber-50 px-4 py-3">
-                  <p className="mb-2 text-sm text-neutral-800">
+                <div className="border-b border-border bg-danger-muted px-4 py-3">
+                  <p className="mb-2 text-sm text-surface-foreground">
                     Remove <span className="font-semibold">{pendingRemoval.displayName}</span> from{" "}
                     <span className="font-semibold">{detail.name}</span>?
                   </p>
@@ -283,14 +278,14 @@ export function GroupDetailsModal({
                     <Button
                       onClick={confirmRemoval}
                       loading={busyUserId === pendingRemoval.userId}
-                      className="bg-red-600 px-3 py-1.5 text-xs hover:bg-red-700"
+                      className="bg-danger px-3 py-1.5 text-xs text-danger-foreground hover:opacity-90"
                     >
                       Remove
                     </Button>
                     <button
                       type="button"
                       onClick={() => setPendingRemoval(null)}
-                      className="rounded-lg px-3 py-1.5 text-xs font-semibold text-neutral-600 hover:bg-neutral-100"
+                      className="rounded-lg px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-surface-hover"
                     >
                       Cancel
                     </button>
@@ -303,27 +298,27 @@ export function GroupDetailsModal({
                   <li key={p.user.id} className="flex items-center gap-3 px-4 py-2.5">
                     <Avatar name={p.user.display_name} imageUrl={p.user.avatar_url} online={p.user.is_online} />
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-neutral-900">
+                      <p className="truncate text-sm font-medium text-surface-foreground">
                         {p.user.display_name}
-                        {p.user.id === currentUserId && <span className="text-neutral-400"> (you)</span>}
+                        {p.user.id === currentUserId && <span className="text-muted-foreground"> (you)</span>}
                       </p>
-                      <p className="truncate text-xs text-neutral-500">@{p.user.username}</p>
+                      <p className="truncate text-xs text-muted-foreground">@{p.user.username}</p>
                     </div>
                     {p.role === "admin" && (
-                      <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                      <span className="shrink-0 rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
                         Admin
                       </span>
                     )}
                     {isAdmin && (
                       <div className="flex shrink-0 items-center gap-1">
                         {busyUserId === p.user.id ? (
-                          <Spinner className="h-4 w-4 text-neutral-400" />
+                          <Spinner className="h-4 w-4 text-muted-foreground" />
                         ) : (
                           <>
                             <button
                               type="button"
                               onClick={() => toggleRole(p)}
-                              className="rounded-lg px-2 py-1 text-[11px] font-semibold text-neutral-500 hover:bg-neutral-100"
+                              className="rounded-lg px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-surface-hover"
                             >
                               {p.role === "admin" ? "Remove admin" : "Make admin"}
                             </button>
@@ -331,15 +326,9 @@ export function GroupDetailsModal({
                               type="button"
                               onClick={() => setPendingRemoval({ userId: p.user.id, displayName: p.user.display_name })}
                               aria-label={`Remove ${p.user.display_name}`}
-                              className="rounded-lg p-1.5 text-neutral-400 hover:bg-red-50 hover:text-red-600"
+                              className="rounded-lg p-1.5 text-muted-foreground hover:bg-danger-muted hover:text-danger"
                             >
-                              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                <path
-                                  fillRule="evenodd"
-                                  d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                                  clipRule="evenodd"
-                                />
-                              </svg>
+                              <TrashIcon className="h-4 w-4" />
                             </button>
                           </>
                         )}

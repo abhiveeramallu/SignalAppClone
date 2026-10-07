@@ -93,7 +93,7 @@ export function RegisterForm() {
       <form
         onSubmit={handleVerify}
         noValidate
-        className="space-y-5 rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm"
+        className="space-y-5 rounded-2xl border border-border bg-surface p-8 shadow-sm"
       >
         <div>
           <button
@@ -102,29 +102,29 @@ export function RegisterForm() {
               setStep("details");
               setError(null);
             }}
-            className="mb-3 text-sm font-medium text-neutral-500 hover:text-neutral-700"
+            className="mb-3 text-sm font-medium text-muted-foreground hover:text-surface-foreground"
           >
             ← Back
           </button>
-          <h2 className="text-lg font-semibold text-neutral-900">Verify your registration</h2>
-          <p className="mt-1 text-sm text-neutral-500">
+          <h2 className="text-lg font-semibold text-surface-foreground">Verify your registration</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
             Phone verification is mocked for this assignment — no real SMS is sent.
           </p>
         </div>
 
         {error && (
-          <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p role="alert" className="rounded-lg bg-danger-muted px-3 py-2 text-sm text-danger">
             {error}
           </p>
         )}
         {status === "created" && (
-          <p role="status" className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-700">
+          <p role="status" className="rounded-lg bg-success/10 px-3 py-2 text-sm text-success">
             Verified. Creating your account and signing you in...
           </p>
         )}
 
         <div>
-          <label htmlFor="otp" className="mb-1.5 block text-sm font-medium text-neutral-700">
+          <label htmlFor="otp" className="mb-1.5 block text-sm font-medium text-muted-foreground">
             Verification code
           </label>
           <input
@@ -138,9 +138,9 @@ export function RegisterForm() {
             maxLength={4}
             placeholder="····"
             autoFocus
-            className="block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-center text-lg tracking-[0.5em] text-neutral-900 placeholder:text-neutral-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            className="block w-full rounded-lg border border-transparent bg-input px-3 py-2 text-center text-lg tracking-[0.5em] text-input-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
-          <p className="mt-1.5 text-xs text-neutral-400">Demo OTP: 1234</p>
+          <p className="mt-1.5 text-xs text-muted-foreground">Demo OTP: 1234</p>
         </div>
 
         <Button type="submit" loading={status === "verifying"} className="w-full">
@@ -154,17 +154,17 @@ export function RegisterForm() {
     <form
       onSubmit={handleContinue}
       noValidate
-      className="space-y-5 rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm"
+      className="space-y-5 rounded-2xl border border-border bg-surface p-8 shadow-sm"
     >
       <div>
-        <h2 className="text-lg font-semibold text-neutral-900">Create your account</h2>
-        <p className="mt-1 text-sm text-neutral-500">
+        <h2 className="text-lg font-semibold text-surface-foreground">Create your account</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
           Join with a username — no real phone verification required.
         </p>
       </div>
 
       {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p role="alert" className="rounded-lg bg-danger-muted px-3 py-2 text-sm text-danger">
           {error}
         </p>
       )}
@@ -215,9 +215,9 @@ export function RegisterForm() {
         Continue
       </Button>
 
-      <p className="text-center text-sm text-neutral-500">
+      <p className="text-center text-sm text-muted-foreground">
         Already have an account?{" "}
-        <Link href="/login" className="font-medium text-blue-600 hover:text-blue-700">
+        <Link href="/login" className="font-medium text-primary hover:opacity-80">
           Sign in
         </Link>
       </p>

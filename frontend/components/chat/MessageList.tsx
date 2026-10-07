@@ -110,15 +110,15 @@ export function MessageList({
 
   if (initialLoading) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-neutral-50">
-        <Spinner className="h-5 w-5 text-neutral-400" />
+      <div className="flex flex-1 items-center justify-center bg-background">
+        <Spinner className="h-5 w-5 text-muted-foreground" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-neutral-50 px-6 text-center text-sm text-red-600">
+      <div className="flex flex-1 items-center justify-center bg-background px-6 text-center text-sm text-danger">
         {error}
       </div>
     );
@@ -126,7 +126,7 @@ export function MessageList({
 
   if (messages.length === 0) {
     return (
-      <div className="flex flex-1 items-center justify-center bg-neutral-50 px-6 text-center text-sm text-neutral-500">
+      <div className="flex flex-1 items-center justify-center bg-background px-6 text-center text-sm text-muted-foreground">
         No messages yet. Say hello!
       </div>
     );
@@ -138,21 +138,21 @@ export function MessageList({
     <div
       ref={containerRef}
       onScroll={handleScroll}
-      className="flex-1 space-y-4 overflow-y-auto bg-neutral-50 px-4 py-4 sm:px-6"
+      className="flex-1 space-y-4 overflow-y-auto bg-background px-4 py-4 sm:px-6"
     >
       {hasMore && (
         <div className="flex justify-center py-1">
           {loadingOlder ? (
-            <Spinner className="h-4 w-4 text-neutral-400" />
+            <Spinner className="h-4 w-4 text-muted-foreground" />
           ) : (
-            <span className="text-xs text-neutral-400">Scroll up for earlier messages</span>
+            <span className="text-xs text-muted-foreground">Scroll up for earlier messages</span>
           )}
         </div>
       )}
       {groups.map((group) => (
         <div key={group.label} className="space-y-1.5">
           <div className="flex justify-center py-1">
-            <span className="rounded-full bg-neutral-200/70 px-3 py-1 text-xs font-medium text-neutral-600">
+            <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
               {group.label}
             </span>
           </div>
