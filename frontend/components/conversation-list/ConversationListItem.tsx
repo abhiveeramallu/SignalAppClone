@@ -1,5 +1,6 @@
 import { Avatar } from "@/components/ui/Avatar";
 import { formatConversationTimestamp } from "@/lib/format";
+import { isImageAttachment } from "@/lib/attachments";
 import type { ConversationPreview } from "@/lib/types";
 
 interface ConversationListItemProps {
@@ -8,9 +9,19 @@ interface ConversationListItemProps {
   onSelect: () => void;
 }
 
+function previewText(conversation: ConversationPreview): string {
+  const last = conversation.last_message;
+  if (!last) return "No messages yet";
+  if (last.message_type === "file") {
+    const filename = last.attachment_filename ?? "File";
+    return isImageAttachment(filename) ? `📷 ${filename}` : `📎 ${filename}`;
+  }
+  return last.content;
+}
+
 export function ConversationListItem({ conversation, selected, onSelect }: ConversationListItemProps) {
   const name = conversation.name ?? conversation.other_user?.display_name ?? "Conversation";
-  const preview = conversation.last_message?.content ?? "No messages yet";
+  const preview = previewText(conversation);
   const isUnread = conversation.unread_count > 0;
 
   return (

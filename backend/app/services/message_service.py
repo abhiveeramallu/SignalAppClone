@@ -1,5 +1,8 @@
+from pathlib import Path
+
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models import Conversation, ConversationParticipant, Message, MessageStatus, User
 
 MAX_MESSAGE_LENGTH = 4000
@@ -20,6 +23,29 @@ def validate_message_content(raw_content: str) -> str:
     if len(trimmed) > MAX_MESSAGE_LENGTH:
         raise MessageValidationError(f"Message content cannot exceed {MAX_MESSAGE_LENGTH} characters")
     return trimmed
+
+
+class AttachmentValidationError(ValueError):
+    """The supplied attachment_path doesn't correspond to a real, as-yet-
+    unattached upload. Kept distinct from MessageValidationError so callers
+    can tell a bad attachment reference apart from bad text content."""
+
+
+def resolve_attachment_path(db: Session, attachment_path: str) -> Path:
+    """Re-validates a client-supplied attachment_path before it's attached to
+    a message: never trusted as a filesystem path directly (basename-only,
+    so a crafted "../x" value can't escape uploads_dir), must actually exist
+    on disk (POST /uploads is the only thing that creates these), and must
+    not already be attached to an earlier message (single-use — a stored
+    filename is an unguessable UUID, so this closes off the one way it could
+    otherwise be replayed: a client resending the same message payload)."""
+    safe_name = Path(attachment_path).name
+    resolved = settings.uploads_dir / safe_name
+    if not resolved.is_file():
+        raise AttachmentValidationError("Attachment not found — upload it again and retry.")
+    if db.query(Message).filter(Message.attachment_path == safe_name).first() is not None:
+        raise AttachmentValidationError("This attachment has already been sent in another message.")
+    return resolved
 
 
 def resolve_status_for_viewer(message: Message, statuses: list[MessageStatus], viewer_id: int) -> str:
@@ -71,16 +97,45 @@ def update_message_status(db: Session, message_id: int, user_id: int, new_status
 
 
 def create_message(
-    db: Session, conversation: Conversation, sender: User, content: str
+    db: Session,
+    conversation: Conversation,
+    sender: User,
+    content: str,
+    *,
+    message_type: str = "text",
+    attachment_filename: str | None = None,
+    attachment_path: str | None = None,
+    attachment_mime_type: str | None = None,
+    attachment_size: int | None = None,
 ) -> tuple[Message, list[MessageStatus]]:
     """Persists one Message + a 'sent' MessageStatus row for every OTHER
     participant (direct or group — no branch needed, both use the same
     conversation_participants rows). Shared by the REST POST endpoint and the
     WebSocket send_message handler so both behave identically. Commits before
-    returning: callers must not respond/broadcast until this returns."""
-    trimmed_content = validate_message_content(content)
+    returning: callers must not respond/broadcast until this returns.
 
-    message = Message(conversation_id=conversation.id, sender_id=sender.id, content=trimmed_content)
+    A file message (message_type == "file") carries an optional caption in
+    `content` — unlike a text message, empty content is valid there, since
+    the attachment itself is the point of the message. Raises
+    AttachmentValidationError (file messages only) if attachment_path isn't a
+    real, not-yet-attached upload."""
+    if message_type == "file":
+        trimmed_content = content.strip()
+        resolve_attachment_path(db, attachment_path)  # raises if invalid; re-derives the safe stored name
+        attachment_path = Path(attachment_path).name
+    else:
+        trimmed_content = validate_message_content(content)
+
+    message = Message(
+        conversation_id=conversation.id,
+        sender_id=sender.id,
+        content=trimmed_content,
+        message_type=message_type,
+        attachment_filename=attachment_filename,
+        attachment_path=attachment_path,
+        attachment_mime_type=attachment_mime_type,
+        attachment_size=attachment_size,
+    )
     db.add(message)
     db.flush()  # assigns message.id
 

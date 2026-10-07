@@ -55,8 +55,9 @@ def test_member_can_view_group_details(client):
 
 def test_non_member_cannot_view_group_details(client):
     alice, alice_token = register_and_login(client, "alice")
+    bob, _ = register_and_login(client, "bob")
     _, outsider_token = register_and_login(client, "eve")
-    group = _create_group(client, alice_token, "Trio", [])
+    group = _create_group(client, alice_token, "Trio", [bob["id"]])
 
     resp = client.get(f"/conversations/{group['id']}", headers=auth_headers(outsider_token))
     assert resp.status_code == 404
@@ -88,7 +89,8 @@ def test_password_hash_never_appears_in_group_details(client):
 def test_admin_can_add_member(client):
     alice, alice_token = register_and_login(client, "alice")
     bob, _ = register_and_login(client, "bob")
-    group = _create_group(client, alice_token, "Trio", [])
+    carol, _ = register_and_login(client, "carol")
+    group = _create_group(client, alice_token, "Trio", [carol["id"]])
 
     resp = client.post(f"/conversations/{group['id']}/members", json={"user_id": bob["id"]}, headers=auth_headers(alice_token))
     assert resp.status_code == 201
@@ -111,7 +113,8 @@ def test_normal_member_cannot_add_user(client):
 
 def test_add_nonexistent_user_rejected(client):
     alice, alice_token = register_and_login(client, "alice")
-    group = _create_group(client, alice_token, "Trio", [])
+    bob, _ = register_and_login(client, "bob")
+    group = _create_group(client, alice_token, "Trio", [bob["id"]])
 
     resp = client.post(
         f"/conversations/{group['id']}/members", json={"user_id": 999999}, headers=auth_headers(alice_token)
@@ -145,7 +148,8 @@ def test_duplicate_member_rejected(client):
 def test_added_user_becomes_member(client):
     alice, alice_token = register_and_login(client, "alice")
     bob, _ = register_and_login(client, "bob")
-    group = _create_group(client, alice_token, "Trio", [])
+    carol, _ = register_and_login(client, "carol")
+    group = _create_group(client, alice_token, "Trio", [carol["id"]])
 
     client.post(f"/conversations/{group['id']}/members", json={"user_id": bob["id"]}, headers=auth_headers(alice_token))
     assert _role(client, group["id"], bob["id"]) == "member"
@@ -154,7 +158,8 @@ def test_added_user_becomes_member(client):
 def test_added_user_can_access_group(client):
     alice, alice_token = register_and_login(client, "alice")
     bob, bob_token = register_and_login(client, "bob")
-    group = _create_group(client, alice_token, "Trio", [])
+    carol, _ = register_and_login(client, "carol")
+    group = _create_group(client, alice_token, "Trio", [carol["id"]])
 
     client.post(f"/conversations/{group['id']}/members", json={"user_id": bob["id"]}, headers=auth_headers(alice_token))
 
@@ -167,7 +172,8 @@ def test_add_member_does_not_require_contact_relationship(client):
     and adding must not silently create a Contact row as a side effect."""
     alice, alice_token = register_and_login(client, "alice")
     bob, _ = register_and_login(client, "bob")  # never added as a contact of alice's
-    group = _create_group(client, alice_token, "Trio", [])
+    carol, _ = register_and_login(client, "carol")
+    group = _create_group(client, alice_token, "Trio", [carol["id"]])
 
     resp = client.post(f"/conversations/{group['id']}/members", json={"user_id": bob["id"]}, headers=auth_headers(alice_token))
     assert resp.status_code == 201
@@ -201,8 +207,9 @@ def test_normal_member_cannot_remove_member(client):
 
 def test_removing_nonexistent_member_rejected(client):
     alice, alice_token = register_and_login(client, "alice")
+    bob, _ = register_and_login(client, "bob")
     eve, _ = register_and_login(client, "eve")
-    group = _create_group(client, alice_token, "Trio", [])
+    group = _create_group(client, alice_token, "Trio", [bob["id"]])
 
     resp = client.delete(f"/conversations/{group['id']}/members/{eve['id']}", headers=auth_headers(alice_token))
     assert resp.status_code == 404
@@ -386,7 +393,8 @@ def test_role_update_rejects_arbitrary_value(client):
 
 def test_admin_can_rename_group(client):
     alice, alice_token = register_and_login(client, "alice")
-    group = _create_group(client, alice_token, "Old Name", [])
+    bob, _ = register_and_login(client, "bob")
+    group = _create_group(client, alice_token, "Old Name", [bob["id"]])
 
     resp = client.patch(f"/conversations/{group['id']}", json={"name": "New Name"}, headers=auth_headers(alice_token))
     assert resp.status_code == 200
@@ -404,7 +412,8 @@ def test_normal_member_cannot_rename(client):
 
 def test_empty_name_rejected(client):
     alice, alice_token = register_and_login(client, "alice")
-    group = _create_group(client, alice_token, "Old Name", [])
+    bob, _ = register_and_login(client, "bob")
+    group = _create_group(client, alice_token, "Old Name", [bob["id"]])
 
     resp = client.patch(f"/conversations/{group['id']}", json={"name": "   "}, headers=auth_headers(alice_token))
     assert resp.status_code == 422
@@ -412,7 +421,8 @@ def test_empty_name_rejected(client):
 
 def test_rename_trims_whitespace(client):
     alice, alice_token = register_and_login(client, "alice")
-    group = _create_group(client, alice_token, "Old Name", [])
+    bob, _ = register_and_login(client, "bob")
+    group = _create_group(client, alice_token, "Old Name", [bob["id"]])
 
     resp = client.patch(f"/conversations/{group['id']}", json={"name": "  Padded  "}, headers=auth_headers(alice_token))
     assert resp.status_code == 200
@@ -453,8 +463,9 @@ def test_group_updated_reaches_current_members(client, live_ws_url):
 
 def test_non_members_do_not_receive_group_updated(client, live_ws_url):
     alice, alice_token = register_and_login(client, "alice")
+    bob, _ = register_and_login(client, "bob")
     _, outsider_token = register_and_login(client, "eve")
-    group = _create_group(client, alice_token, "Trio", [])
+    group = _create_group(client, alice_token, "Trio", [bob["id"]])
 
     async def body():
         outsider_ws = await ws_connect_authenticated(live_ws_url, outsider_token)

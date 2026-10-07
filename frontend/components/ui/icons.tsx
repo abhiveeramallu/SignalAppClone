@@ -274,6 +274,15 @@ export function LogoutIcon(props: IconProps) {
   );
 }
 
+export function FileIcon(props: IconProps) {
+  return (
+    <Base {...props}>
+      <path d="M7 2.5h7l4 4V20a1 1 0 01-1 1H7a1 1 0 01-1-1V3.5a1 1 0 011-1z" />
+      <path d="M14 2.5V7h4.5" />
+    </Base>
+  );
+}
+
 export function ArchiveIcon(props: IconProps) {
   return (
     <Base {...props}>

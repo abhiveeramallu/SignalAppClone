@@ -8,7 +8,7 @@ from app.core.deps import get_conversation_for_member, get_current_user
 from app.db.session import get_db
 from app.models import Conversation, Message, MessageStatus, User
 from app.schemas.messages import MessageCreate, MessagePage, MessageResponse, MessageSender
-from app.services.message_service import create_message, resolve_status_for_viewer
+from app.services.message_service import AttachmentValidationError, create_message, resolve_status_for_viewer
 
 router = APIRouter()
 
@@ -73,6 +73,11 @@ def get_message_history(
             conversation_id=m.conversation_id,
             sender=MessageSender.model_validate(m.sender),
             content=m.content,
+            message_type=m.message_type,
+            attachment_filename=m.attachment_filename,
+            attachment_mime_type=m.attachment_mime_type,
+            attachment_size=m.attachment_size,
+            attachment_url=f"/uploads/{m.id}" if m.message_type == "file" else None,
             created_at=m.created_at,
             status=resolve_status_for_viewer(m, statuses_by_message.get(m.id, []), current_user.id),
         )
@@ -92,13 +97,31 @@ def send_message(
 ):
     # Shared with the WebSocket send_message handler — same persistence,
     # same recipient-status creation, same rules, in one place.
-    message, statuses = create_message(db, conversation, current_user, payload.content)
+    try:
+        message, statuses = create_message(
+            db,
+            conversation,
+            current_user,
+            payload.content,
+            message_type=payload.message_type,
+            attachment_filename=payload.attachment_filename,
+            attachment_path=payload.attachment_path,
+            attachment_mime_type=payload.attachment_mime_type,
+            attachment_size=payload.attachment_size,
+        )
+    except AttachmentValidationError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
     return MessageResponse(
         id=message.id,
         conversation_id=message.conversation_id,
         sender=MessageSender.model_validate(current_user),
         content=message.content,
+        message_type=message.message_type,
+        attachment_filename=message.attachment_filename,
+        attachment_mime_type=message.attachment_mime_type,
+        attachment_size=message.attachment_size,
+        attachment_url=f"/uploads/{message.id}" if message.message_type == "file" else None,
         created_at=message.created_at,
         status=resolve_status_for_viewer(message, statuses, current_user.id),
     )

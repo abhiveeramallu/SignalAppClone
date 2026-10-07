@@ -12,8 +12,12 @@ export interface UserSummary {
 
 export type ConversationType = "direct" | "group";
 
+export type MessageType = "text" | "file";
+
 export interface LastMessagePreview {
   content: string;
+  message_type: MessageType;
+  attachment_filename: string | null;
   created_at: string;
 }
 
@@ -58,8 +62,20 @@ export interface Message {
   conversation_id: number;
   sender: MessageSender;
   content: string;
+  message_type: MessageType;
+  attachment_filename: string | null;
+  attachment_mime_type: string | null;
+  attachment_size: number | null;
+  attachment_url: string | null;
   created_at: string;
   status: MessageStatusValue;
+}
+
+export interface PendingAttachment {
+  attachment_filename: string;
+  attachment_path: string;
+  attachment_mime_type: string;
+  attachment_size: number;
 }
 
 export interface MessagePage {

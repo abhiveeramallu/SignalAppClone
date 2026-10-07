@@ -120,6 +120,26 @@ def test_group_creator_becomes_admin_and_members_added(client):
     assert roles == {"alice": "admin", "bob": "member"}
 
 
+def test_group_requires_at_least_one_other_member(client):
+    _, token = register_and_login(client, "alice")
+    resp = client.post(
+        "/conversations/group", json={"name": "Solo Group", "member_ids": []}, headers=auth_headers(token)
+    )
+    assert resp.status_code == 422
+
+
+def test_group_requires_at_least_one_member_after_self_filtered(client):
+    """member_ids containing only the creator's own id must be rejected the
+    same way an empty list is — self-inclusion isn't a real "other member"."""
+    alice, token = register_and_login(client, "alice")
+    resp = client.post(
+        "/conversations/group",
+        json={"name": "Self Only", "member_ids": [alice["id"]]},
+        headers=auth_headers(token),
+    )
+    assert resp.status_code == 400
+
+
 def test_group_nonexistent_member_rejected(client):
     _, token = register_and_login(client, "alice")
     resp = client.post(

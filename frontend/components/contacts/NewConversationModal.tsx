@@ -78,11 +78,12 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
     };
   }, [open, token]);
 
-  // Debounced registered-user search — only in Message mode, only once the
-  // query is non-empty (an empty query skips the network call entirely, same
-  // policy as the backend's own guard against an unbounded query).
+  // Debounced registered-user search — Message mode AND Group mode both use
+  // it (a group needs to find people who aren't contacts yet too), only once
+  // the query is non-empty (an empty query skips the network call entirely,
+  // same policy as the backend's own guard against an unbounded query).
   useEffect(() => {
-    if (!open || !token || mode !== "direct") return;
+    if (!open || !token) return;
     const trimmed = query.trim();
     const activeToken = token;
     let cancelled = false;
@@ -134,11 +135,10 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
   if (!open) return null;
 
   const normalizedQuery = query.trim().toLowerCase();
-  // Message mode: an empty query shows the already-loaded contact list
-  // (client-side filtered, though it's never actually filtered since the
-  // query is empty here — kept for clarity); a non-empty query shows
-  // debounced registered-user search results instead, which already come
-  // back from the backend pre-filtered.
+  // An empty query shows the already-loaded contact list; a non-empty query
+  // shows debounced registered-user search results instead (both modes —
+  // Group mode needs this too, to find people who aren't contacts yet), which
+  // already come back from the backend pre-filtered.
   const filtered = normalizedQuery
     ? contacts.filter(
         (c) =>
@@ -146,9 +146,15 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
           c.display_name.toLowerCase().includes(normalizedQuery),
       )
     : contacts;
-  const isSearchingPeople = mode === "direct" && normalizedQuery.length > 0;
+  const isSearchingPeople = normalizedQuery.length > 0;
   const contactIds = new Set(contacts.map((c) => c.id));
   const isContact = (userId: number) => contactIds.has(userId);
+  // Anyone selectable for the group (an existing contact, or someone just
+  // added as one via the inline "Add contact" action below) is present in
+  // `contacts` by the time they're selected — safe to look names up there
+  // for the "selected members" chips.
+  const selectedUsers = contacts.filter((c) => selectedIds.has(c.id));
+  const canCreateGroup = groupName.trim().length > 0 && selectedIds.size > 0 && !creatingGroup;
 
   async function handleSelectDirect(contact: UserSummary) {
     if (!token || creatingId !== null) return;
@@ -173,8 +179,14 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
       await api.addContact(token, user.id);
       // Reflected locally only after backend success — this is what flips
       // isContact(user.id) to true, turning the row into a start-conversation
-      // row on the next render without needing a full contacts refetch.
+      // (or, in Group mode, a selectable) row on the next render without
+      // needing a full contacts refetch.
       setContacts((prev) => (prev.some((c) => c.id === user.id) ? prev : [...prev, user]));
+      // In Group mode, adding someone should make them immediately selectable
+      // AND already selected — no extra click, no closing/reopening the modal.
+      if (mode === "group") {
+        setSelectedIds((prev) => new Set(prev).add(user.id));
+      }
       onToast("Contact added");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not add contact.");
@@ -265,11 +277,32 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
           </div>
         )}
 
+        {mode === "group" && selectedUsers.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 border-b border-border px-3 pb-3 pt-1">
+            {selectedUsers.map((user) => (
+              <span
+                key={user.id}
+                className="flex items-center gap-1 rounded-full bg-primary/10 py-1 pl-2.5 pr-1.5 text-xs font-medium text-primary"
+              >
+                {user.display_name}
+                <button
+                  type="button"
+                  onClick={() => toggleSelected(user.id)}
+                  aria-label={`Remove ${user.display_name}`}
+                  className="rounded-full p-0.5 hover:bg-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                >
+                  <CloseIcon className="h-3 w-3" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+
         <div className="p-3 pb-0">
           <SearchInput
             value={query}
             onChange={setQuery}
-            placeholder={mode === "direct" ? "Search people by name or username" : "Search contacts"}
+            placeholder={mode === "direct" ? "Search people by name or username" : "Search contacts or username"}
           />
         </div>
 
@@ -281,14 +314,60 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
             </p>
           )}
 
-          {mode === "direct" && isSearchingPeople ? (
+          {isSearchingPeople ? (
             <>
               {searching && <p className="px-2 py-4 text-center text-sm text-muted-foreground">Searching…</p>}
               {!searching && searchResults.length === 0 && (
                 <p className="px-2 py-4 text-center text-sm text-muted-foreground">No people found.</p>
               )}
-              {searchResults.map((user) =>
-                isContact(user.id) ? (
+              {searchResults.map((user) => {
+                const alreadyContact = isContact(user.id);
+                if (mode === "group") {
+                  return (
+                    <div key={user.id} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5">
+                      {alreadyContact ? (
+                        <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(user.id)}
+                            onChange={() => toggleSelected(user.id)}
+                            className="h-4 w-4 shrink-0 rounded border-border text-primary focus:ring-primary/30"
+                          />
+                          <Avatar name={user.display_name} imageUrl={user.avatar_url} online={user.is_online} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold text-surface-foreground">
+                              {user.display_name}
+                            </span>
+                            <span className="block truncate text-xs text-muted-foreground">@{user.username}</span>
+                          </span>
+                        </label>
+                      ) : (
+                        <>
+                          <Avatar name={user.display_name} imageUrl={user.avatar_url} online={user.is_online} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm font-semibold text-surface-foreground">
+                              {user.display_name}
+                            </span>
+                            <span className="block truncate text-xs text-muted-foreground">@{user.username}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleAddContact(user)}
+                            disabled={addingContactId !== null}
+                            className="shrink-0 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {addingContactId === user.id ? (
+                              <Spinner className="h-4 w-4 text-primary" />
+                            ) : (
+                              "Add contact"
+                            )}
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  );
+                }
+                return alreadyContact ? (
                   <button
                     key={user.id}
                     type="button"
@@ -323,17 +402,15 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
                       {addingContactId === user.id ? <Spinner className="h-4 w-4 text-primary" /> : "Add contact"}
                     </button>
                   </div>
-                ),
-              )}
+                );
+              })}
             </>
           ) : (
             <>
               {!loading && filtered.length === 0 && (
                 <p className="px-2 py-4 text-center text-sm text-muted-foreground">
                   {contacts.length === 0
-                    ? mode === "direct"
-                      ? "You don't have any contacts yet. Search for people above to add one."
-                      : "You don't have any contacts yet."
+                    ? "You don't have any contacts yet. Search for people above to add one."
                     : "No contacts found."}
                 </p>
               )}
@@ -382,14 +459,14 @@ export function NewConversationModal({ open, onClose, onConversationReady, onToa
 
         {mode === "group" && (
           <div className="border-t border-border p-3">
-            <Button
-              onClick={handleCreateGroup}
-              loading={creatingGroup}
-              disabled={!groupName.trim()}
-              className="w-full"
-            >
+            <Button onClick={handleCreateGroup} loading={creatingGroup} disabled={!canCreateGroup} className="w-full">
               {creatingGroup ? "Creating…" : `Create group${selectedIds.size > 0 ? ` (${selectedIds.size})` : ""}`}
             </Button>
+            {!canCreateGroup && !creatingGroup && (groupName.trim() === "" || selectedIds.size === 0) && (
+              <p className="mt-1.5 text-center text-xs text-muted-foreground">
+                {groupName.trim() === "" ? "Name your group to continue." : "Select at least one member."}
+              </p>
+            )}
           </div>
         )}
       </div>

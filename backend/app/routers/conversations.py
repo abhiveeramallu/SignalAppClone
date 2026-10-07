@@ -102,7 +102,12 @@ def _build_preview(db: Session, conversation: Conversation, current_user: User) 
         other_user=other_user,
         member_count=member_count,
         last_message=(
-            LastMessagePreview(content=last_message.content, created_at=last_message.created_at)
+            LastMessagePreview(
+                content=last_message.content,
+                message_type=last_message.message_type,
+                attachment_filename=last_message.attachment_filename,
+                created_at=last_message.created_at,
+            )
             if last_message
             else None
         ),
@@ -212,7 +217,12 @@ def list_conversations(current_user: User = Depends(get_current_user), db: Sessi
             other_user=other_user,
             member_count=member_count,
             last_message=(
-                LastMessagePreview(content=last_message.content, created_at=last_message.created_at)
+                LastMessagePreview(
+                    content=last_message.content,
+                    message_type=last_message.message_type,
+                    attachment_filename=last_message.attachment_filename,
+                    created_at=last_message.created_at,
+                )
                 if last_message
                 else None
             ),
@@ -279,11 +289,17 @@ def create_group_conversation(
     db: Session = Depends(get_db),
 ):
     member_ids = {uid for uid in payload.member_ids if uid != current_user.id}
+    if not member_ids:
+        # The schema's own min-length check already rejects an empty
+        # member_ids list, but that runs before current_user is known — a
+        # payload containing only the requester's own id (e.g. the UI
+        # accidentally included them) would otherwise slip through as an
+        # empty set here.
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="A group needs at least one other member")
 
-    if member_ids:
-        found_count = db.query(func.count(User.id)).filter(User.id.in_(member_ids)).scalar()
-        if found_count != len(member_ids):
-            raise HTTPException(status.HTTP_404_NOT_FOUND, detail="One or more members do not exist")
+    found_count = db.query(func.count(User.id)).filter(User.id.in_(member_ids)).scalar()
+    if found_count != len(member_ids):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="One or more members do not exist")
 
     conversation = Conversation(type="group", name=payload.name, direct_key=None)
     db.add(conversation)

@@ -1,4 +1,11 @@
-import type { ConversationDetail, ConversationPreview, MessagePage, Participant, UserSummary } from "@/lib/types";
+import type {
+  ConversationDetail,
+  ConversationPreview,
+  MessagePage,
+  Participant,
+  PendingAttachment,
+  UserSummary,
+} from "@/lib/types";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -244,5 +251,35 @@ export const api = {
       headers: authHeaders(token),
       body: JSON.stringify(payload),
     });
+  },
+
+  // Multipart upload — deliberately bypasses request() above, which always
+  // sets Content-Type: application/json. A multipart body needs the browser
+  // to set its own Content-Type (with the generated boundary) instead.
+  async uploadFile(token: string, file: File): Promise<PendingAttachment> {
+    const form = new FormData();
+    form.append("file", file);
+    const res = await fetch(`${API_URL}/uploads`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: form,
+    });
+    if (!res.ok) {
+      const body = await safeJson(res);
+      throw new ApiError(res.status, extractErrorMessage(res.status, body, true));
+    }
+    return (await res.json()) as PendingAttachment;
+  },
+
+  // Attachment downloads require the bearer token, so a plain <img src> or
+  // <a href> can't be pointed at them directly — fetch the bytes ourselves
+  // and hand the caller an object URL to use instead.
+  async fetchAttachmentBlob(token: string, messageId: number): Promise<Blob> {
+    const res = await fetch(`${API_URL}/uploads/${messageId}`, { headers: authHeaders(token) });
+    if (!res.ok) {
+      const body = await safeJson(res);
+      throw new ApiError(res.status, extractErrorMessage(res.status, body, true));
+    }
+    return res.blob();
   },
 };

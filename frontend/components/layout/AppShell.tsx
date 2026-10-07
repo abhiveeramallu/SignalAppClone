@@ -9,7 +9,7 @@ import { GroupDetailsModal } from "@/components/chat/GroupDetailsModal";
 import { useAuth } from "@/lib/auth-context";
 import { useWebSocket, type TypingUser } from "@/lib/ws";
 import { api, ApiError } from "@/lib/api";
-import type { ConversationPreview, Message } from "@/lib/types";
+import type { ConversationPreview, Message, PendingAttachment } from "@/lib/types";
 
 interface MessageThreadState {
   messages: Message[]; // oldest -> newest
@@ -279,7 +279,12 @@ export function AppShell() {
         const current = prev[index];
         const updated: ConversationPreview = {
           ...current,
-          last_message: { content: message.content, created_at: message.created_at },
+          last_message: {
+            content: message.content,
+            message_type: message.message_type,
+            attachment_filename: message.attachment_filename,
+            created_at: message.created_at,
+          },
           unread_count: isActive || isOwnMessage ? current.unread_count : current.unread_count + 1,
         };
         return [updated, ...prev.slice(0, index), ...prev.slice(index + 1)];
@@ -431,13 +436,29 @@ export function AppShell() {
     setMobileView("chat");
   }
 
-  function handleSend(text: string): boolean {
+  function handleSend(text: string, attachment?: PendingAttachment): boolean {
     if (selectedId == null) return false;
-    const dispatched = client.send({ type: "send_message", conversation_id: selectedId, content: text });
+    const dispatched = client.send({
+      type: "send_message",
+      conversation_id: selectedId,
+      content: text,
+      ...(attachment && {
+        message_type: "file",
+        attachment_filename: attachment.attachment_filename,
+        attachment_path: attachment.attachment_path,
+        attachment_mime_type: attachment.attachment_mime_type,
+        attachment_size: attachment.attachment_size,
+      }),
+    });
     if (!dispatched) {
       showToast("Not connected — try again in a moment.");
     }
     return dispatched;
+  }
+
+  async function handleUploadFile(file: File): Promise<PendingAttachment> {
+    if (!token) throw new Error("Not authenticated");
+    return api.uploadFile(token, file);
   }
 
   function handleTypingStart(conversationId: number) {
@@ -493,6 +514,7 @@ export function AppShell() {
         onTypingStart={() => selectedId != null && handleTypingStart(selectedId)}
         onTypingStop={() => selectedId != null && handleTypingStop(selectedId)}
         onSend={handleSend}
+        onUploadFile={handleUploadFile}
         composerDisabled={wsState !== "connected"}
         connectionState={wsState}
         onBack={() => setMobileView("list")}

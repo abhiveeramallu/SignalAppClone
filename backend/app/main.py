@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.db.init_db import init_db
 from app.db.seed import seed
 from app.db.session import get_db
-from app.routers import auth, contacts, conversations, messages, users
+from app.routers import auth, contacts, conversations, messages, uploads, users
 from app.websocket import endpoint as websocket_endpoint
 
 
@@ -39,6 +39,7 @@ async def lifespan(app: FastAPI):
     its own tables directly besides).
     """
     settings.database_path.parent.mkdir(parents=True, exist_ok=True)
+    settings.uploads_dir.mkdir(parents=True, exist_ok=True)
 
     under_test = get_db in app.dependency_overrides
     db_dependency = app.dependency_overrides.get(get_db, get_db)
@@ -71,6 +72,7 @@ app.include_router(conversations.router, prefix="/conversations", tags=["convers
 app.include_router(
     messages.router, prefix="/conversations/{conversation_id}/messages", tags=["messages"]
 )
+app.include_router(uploads.router, prefix="/uploads", tags=["uploads"])
 app.include_router(websocket_endpoint.router, tags=["websocket"])
 
 

@@ -1,8 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from "react";
-import { AttachIcon, SendIcon } from "@/components/ui/icons";
+import { AttachIcon, CloseIcon, FileIcon, SendIcon } from "@/components/ui/icons";
+import { Spinner } from "@/components/ui/Spinner";
+import { formatFileSize } from "@/lib/format";
+import { isImageAttachment, validateFileForUpload } from "@/lib/attachments";
 import type { ConnectionState } from "@/lib/ws";
+import type { PendingAttachment } from "@/lib/types";
 
 const TYPING_STOP_DELAY_MS = 1500;
 
@@ -15,9 +19,10 @@ const DISCONNECTED_PLACEHOLDER: Partial<Record<ConnectionState, string>> = {
 
 interface MessageComposerProps {
   /** Returns false if the send could not be dispatched (e.g. not connected) —
-   * the composer keeps the typed text in that case instead of clearing it. */
-  onSend: (text: string) => boolean;
-  onAttachClick: () => void;
+   * the composer keeps the typed text/attachment in that case instead of
+   * clearing it. `attachment` is the already-uploaded file's metadata. */
+  onSend: (text: string, attachment?: PendingAttachment) => boolean;
+  onUploadFile: (file: File) => Promise<PendingAttachment>;
   onTypingStart: () => void;
   onTypingStop: () => void;
   disabled?: boolean;
@@ -26,13 +31,18 @@ interface MessageComposerProps {
 
 export function MessageComposer({
   onSend,
-  onAttachClick,
+  onUploadFile,
   onTypingStart,
   onTypingStop,
   disabled,
   connectionState,
 }: MessageComposerProps) {
   const [text, setText] = useState("");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isTypingRef = useRef(false);
   const stopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -69,9 +79,54 @@ export function MessageComposer({
     stopTimerRef.current = setTimeout(stopTypingNow, TYPING_STOP_DELAY_MS);
   }
 
-  function submit() {
+  function clearAttachment() {
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    setPendingFile(null);
+    setPreviewUrl(null);
+    setFileError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleFileSelected(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const error = validateFileForUpload(file);
+    if (error) {
+      setFileError(error);
+      setPendingFile(null);
+      setPreviewUrl(null);
+      e.target.value = "";
+      return;
+    }
+    setFileError(null);
+    setPendingFile(file);
+    setPreviewUrl(isImageAttachment(file.name, file.type) ? URL.createObjectURL(file) : null);
+  }
+
+  async function submit() {
+    if (disabled || uploading) return;
     const trimmed = text.trim();
-    if (!trimmed || disabled) return;
+
+    if (pendingFile) {
+      setUploading(true);
+      setFileError(null);
+      try {
+        const attachment = await onUploadFile(pendingFile);
+        const dispatched = onSend(trimmed, attachment);
+        if (dispatched) {
+          setText("");
+          clearAttachment();
+          stopTypingNow();
+        }
+      } catch {
+        setFileError("Upload failed. Try again.");
+      } finally {
+        setUploading(false);
+      }
+      return;
+    }
+
+    if (!trimmed) return;
     const dispatched = onSend(trimmed);
     if (dispatched) {
       setText("");
@@ -99,42 +154,97 @@ export function MessageComposer({
     return () => {
       clearStopTimer();
       if (isTypingRef.current) onTypingStop();
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
     };
     // Intentionally run only on unmount — onTypingStop is stable enough for
     // this instance's lifetime (bound to one conversation via the `key` prop).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const canSend = (Boolean(text.trim()) || Boolean(pendingFile)) && !disabled && !uploading;
+
   return (
-    <form onSubmit={handleSubmit} className="flex items-end gap-2 border-t border-border bg-background px-4 py-3">
-      <button
-        type="button"
-        onClick={onAttachClick}
-        aria-label="Attach file (not implemented)"
-        title="Attach"
-        className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-surface-hover hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-      >
-        <AttachIcon className="h-5 w-5" />
-      </button>
+    <div className="border-t border-border bg-background">
+      {(pendingFile || fileError) && (
+        <div className="flex items-center gap-3 px-4 pt-3">
+          {fileError ? (
+            <p className="flex-1 text-sm text-danger">{fileError}</p>
+          ) : (
+            pendingFile && (
+              <div className="flex items-center gap-2 rounded-xl bg-muted px-3 py-2">
+                {previewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- local object URL, not a remote image
+                  <img src={previewUrl} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+                ) : (
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-surface text-muted-foreground">
+                    <FileIcon className="h-5 w-5" />
+                  </span>
+                )}
+                <span className="min-w-0">
+                  <span className="block max-w-[14rem] truncate text-sm font-medium text-foreground">
+                    {pendingFile.name}
+                  </span>
+                  <span className="block text-xs text-muted-foreground">{formatFileSize(pendingFile.size)}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={clearAttachment}
+                  disabled={uploading}
+                  aria-label="Remove attachment"
+                  className="ml-1 shrink-0 rounded-full p-1 text-muted-foreground hover:bg-surface-hover hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <CloseIcon className="h-4 w-4" />
+                </button>
+              </div>
+            )
+          )}
+        </div>
+      )}
 
-      <textarea
-        value={text}
-        onChange={(e) => handleChange(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder={disabled ? (connectionState && DISCONNECTED_PLACEHOLDER[connectionState]) || "Connecting…" : "Write a message"}
-        rows={1}
-        disabled={disabled}
-        className="max-h-32 flex-1 resize-none overflow-y-auto rounded-3xl border border-transparent bg-input px-4 py-2 text-[14.5px] text-input-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
-      />
+      <form onSubmit={handleSubmit} className="flex items-end gap-2 px-4 py-3">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.txt,.doc,.docx,.zip"
+          onChange={handleFileSelected}
+          className="hidden"
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={disabled}
+          aria-label="Attach file"
+          title="Attach"
+          className="shrink-0 rounded-full p-2 text-muted-foreground hover:bg-surface-hover hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <AttachIcon className="h-5 w-5" />
+        </button>
 
-      <button
-        type="submit"
-        disabled={!text.trim() || disabled}
-        aria-label="Send message"
-        className="shrink-0 rounded-full bg-primary p-2.5 text-primary-foreground transition-colors hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <SendIcon className="h-5 w-5" />
-      </button>
-    </form>
+        <textarea
+          value={text}
+          onChange={(e) => handleChange(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder={
+            disabled
+              ? (connectionState && DISCONNECTED_PLACEHOLDER[connectionState]) || "Connecting…"
+              : pendingFile
+                ? "Add a caption (optional)"
+                : "Write a message"
+          }
+          rows={1}
+          disabled={disabled}
+          className="max-h-32 flex-1 resize-none overflow-y-auto rounded-3xl border border-transparent bg-input px-4 py-2 text-[14.5px] text-input-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 disabled:cursor-not-allowed disabled:opacity-60"
+        />
+
+        <button
+          type="submit"
+          disabled={!canSend}
+          aria-label="Send message"
+          className="shrink-0 rounded-full bg-primary p-2.5 text-primary-foreground transition-colors hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {uploading ? <Spinner className="h-5 w-5" /> : <SendIcon className="h-5 w-5" />}
+        </button>
+      </form>
+    </div>
   );
 }

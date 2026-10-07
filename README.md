@@ -25,6 +25,7 @@ This is a Signal-inspired secure messaging platform built as a full-stack assign
 - Sent / delivered / read status per message, correctly aggregated for group recipients
 - Real-time delivery over a single WebSocket connection
 - Typing indicators (ephemeral, never persisted)
+- Basic file attachments (images, PDFs, text, Word docs, zip — 10 MB max; see §13 for the storage caveat and §9/§13 for the authorized-download design)
 
 ### Conversations
 - Conversation list sorted by most recent activity
@@ -56,7 +57,6 @@ This is a Signal-inspired secure messaging platform built as a full-stack assign
 - Video calls
 - Stories
 - Linked devices
-- File/media attachments
 - Disappearing messages
 - Message reactions or replies
 
@@ -288,6 +288,12 @@ Examples:
 | DELETE | `/conversations/{conversation_id}/members/{user_id}` | Remove a member (admin-only) |
 | PATCH | `/conversations/{conversation_id}/members/{user_id}` | Promote/demote a member's role (admin-only) |
 
+**Uploads**
+| Method | Path | Description |
+|---|---|---|
+| POST | `/uploads` | Upload a file (multipart/form-data); returns attachment metadata to attach to a subsequent message |
+| GET | `/uploads/{message_id}` | Download a message's attachment — authenticated, and only if the caller is a participant in that message's conversation |
+
 Plus `GET /health` (liveness check) and the WebSocket endpoint at `/ws`.
 
 ## 10. Local Setup
@@ -381,6 +387,7 @@ All four complete successfully with no errors.
 - JWT sent only in the WebSocket message body, never in the connection URL
 - Input validation (message length/emptiness, group name, role enum, malformed JSON/WebSocket events all rejected safely)
 - `password_hash` is never included in any API response
+- File attachments are served only through an authenticated, membership-checked endpoint (`GET /uploads/{message_id}`) — never a static/public file mount. A client-supplied filename is never used as a filesystem path (stored files get a server-generated random name); extension and declared MIME type are both checked against an allowlist; executables are rejected outright
 
 **Limitations (explicit, by assignment design):**
 - No real end-to-end encryption — this is not a production-secure messaging product
@@ -388,6 +395,7 @@ All four complete successfully with no errors.
 - The WebSocket connection manager is in-process/in-memory — it does not survive a process restart and does not span multiple backend processes
 - SQLite is appropriate for assignment/demo scale, not for concurrent production load
 - Phone-based OTP verification is mocked (a single fixed code, `1234`, checked directly by `POST /auth/register/verify-otp`) rather than real SMS delivery
+- **File attachments are stored on local disk (`backend/uploads/`), which is NOT durable on an ephemeral filesystem** (e.g. Render's default disk) — every uploaded file is lost on redeploy/restart, exactly like SQLite's own persistence caveat below. This is acceptable for an assignment/demo; a production deployment would need object storage (S3-compatible) instead
 
 This application should not be described as production-secure.
 
@@ -417,7 +425,7 @@ No deployment URL exists for this project — it has not been deployed.
 
 - No real Signal Protocol end-to-end encryption.
 - No real SMS delivery for OTP (a single fixed mock code, `1234`, is used instead).
-- No file or media attachments.
+- File attachments use local disk storage, not durable object storage — lost on redeploy to an ephemeral filesystem (see §13).
 - No voice or video calls.
 - No stories.
 - No linked devices.

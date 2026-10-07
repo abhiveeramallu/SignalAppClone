@@ -51,6 +51,7 @@ from app.db.session import get_db
 from app.models import ConversationParticipant, Message, MessageStatus, User
 from app.schemas.messages import MessageResponse, MessageSender
 from app.services.message_service import (
+    AttachmentValidationError,
     MessageValidationError,
     create_message,
     resolve_sender_aggregate_status,
@@ -152,12 +153,16 @@ async def _authenticate(websocket: WebSocket) -> User | None:
 async def _handle_send_message(websocket: WebSocket, user: User, raw: dict) -> None:
     conversation_id = raw.get("conversation_id")
     content = raw.get("content")
+    message_type = raw.get("message_type", "text")
     if not isinstance(conversation_id, int) or not isinstance(content, str):
         await websocket.send_json(
             _error_event(
                 "MALFORMED_MESSAGE", "send_message requires an integer conversation_id and string content."
             )
         )
+        return
+    if message_type not in ("text", "file"):
+        await websocket.send_json(_error_event("MALFORMED_MESSAGE", "message_type must be 'text' or 'file'."))
         return
 
     with _db_session(websocket) as db:
@@ -171,8 +176,18 @@ async def _handle_send_message(websocket: WebSocket, user: User, raw: dict) -> N
         try:
             # Same service function POST /conversations/{id}/messages uses —
             # one persistence path, not two. Commits internally.
-            message, statuses = create_message(db, conversation, user, content)
-        except MessageValidationError as exc:
+            message, statuses = create_message(
+                db,
+                conversation,
+                user,
+                content,
+                message_type=message_type,
+                attachment_filename=raw.get("attachment_filename"),
+                attachment_path=raw.get("attachment_path"),
+                attachment_mime_type=raw.get("attachment_mime_type"),
+                attachment_size=raw.get("attachment_size"),
+            )
+        except (MessageValidationError, AttachmentValidationError) as exc:
             await websocket.send_json(_error_event("INVALID_MESSAGE", str(exc)))
             return
 
@@ -182,6 +197,11 @@ async def _handle_send_message(websocket: WebSocket, user: User, raw: dict) -> N
             conversation_id=message.conversation_id,
             sender=MessageSender.model_validate(user),
             content=message.content,
+            message_type=message.message_type,
+            attachment_filename=message.attachment_filename,
+            attachment_mime_type=message.attachment_mime_type,
+            attachment_size=message.attachment_size,
+            attachment_url=f"/uploads/{message.id}" if message.message_type == "file" else None,
             created_at=message.created_at,
             # Uniform "sent" is accurate for every recipient here: this is a
             # snapshot taken immediately after creation, before any delivery/

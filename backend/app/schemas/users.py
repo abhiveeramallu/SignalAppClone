@@ -1,6 +1,6 @@
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict
+
+from app.schemas.common import UTCDatetime
 
 
 class UserSummary(BaseModel):
@@ -14,4 +14,4 @@ class UserSummary(BaseModel):
     display_name: str
     avatar_url: str | None
     is_online: bool
-    last_seen_at: datetime | None
+    last_seen_at: UTCDatetime | None

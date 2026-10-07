@@ -1,6 +1,6 @@
-from datetime import datetime
-
 from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from app.schemas.common import UTCDatetime
 
 
 class RegisterRequest(BaseModel):
@@ -57,5 +57,5 @@ class UserResponse(BaseModel):
     display_name: str
     avatar_url: str | None
     is_online: bool
-    last_seen_at: datetime | None
-    created_at: datetime
+    last_seen_at: UTCDatetime | None
+    created_at: UTCDatetime

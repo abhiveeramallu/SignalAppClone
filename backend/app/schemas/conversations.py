@@ -1,7 +1,6 @@
-from datetime import datetime
-
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.common import UTCDatetime
 from app.schemas.users import UserSummary
 
 VALID_ROLES = {"member", "admin"}
@@ -9,7 +8,9 @@ VALID_ROLES = {"member", "admin"}
 
 class LastMessagePreview(BaseModel):
     content: str
-    created_at: datetime
+    message_type: str = "text"
+    attachment_filename: str | None = None
+    created_at: UTCDatetime
 
 
 class ConversationPreviewResponse(BaseModel):
@@ -36,7 +37,7 @@ class ConversationDetailResponse(BaseModel):
     other_user: UserSummary | None = None  # direct conversations only
     participants: list[ParticipantResponse] | None = None  # group conversations only
     member_count: int | None = None  # group conversations only
-    created_at: datetime
+    created_at: UTCDatetime
 
 
 class DirectConversationCreate(BaseModel):
@@ -46,6 +47,21 @@ class DirectConversationCreate(BaseModel):
 class GroupConversationCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     member_ids: list[int] = Field(default_factory=list)
+
+    @field_validator("name")
+    @classmethod
+    def _name_not_blank(cls, value: str) -> str:
+        trimmed = value.strip()
+        if not trimmed:
+            raise ValueError("name cannot be empty")
+        return trimmed
+
+    @field_validator("member_ids")
+    @classmethod
+    def _require_at_least_one_member(cls, value: list[int]) -> list[int]:
+        if not value:
+            raise ValueError("A group needs at least one other member")
+        return value
 
 
 class AddMemberRequest(BaseModel):

@@ -13,6 +13,7 @@ from sqlalchemy.orm import sessionmaker
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import app.models  # noqa: F401 — populates Base.metadata before create_all
+from app.core.config import settings
 from app.db.base_class import Base
 from app.db.session import get_db
 from app.main import app
@@ -36,8 +37,12 @@ def _reset_websocket_manager():
 
 
 @pytest.fixture()
-def client(tmp_path):
-    """Isolated SQLite file per test — never touches the dev signal_clone.db."""
+def client(tmp_path, monkeypatch):
+    """Isolated SQLite file per test — never touches the dev signal_clone.db.
+    Uploaded-file storage is redirected to this test's own tmp_path the same
+    way — a test that uploads a file must never write into the real dev
+    backend/uploads/ directory."""
+    monkeypatch.setattr(settings, "uploads_dir", tmp_path / "uploads")
     db_path = tmp_path / "test.db"
     engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
 

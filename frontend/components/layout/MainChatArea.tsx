@@ -4,7 +4,7 @@ import { MessageComposer } from "@/components/chat/MessageComposer";
 import { TypingIndicator } from "@/components/chat/TypingIndicator";
 import { ChatsIcon } from "@/components/ui/icons";
 import type { ConnectionState, TypingUser } from "@/lib/ws";
-import type { ConversationPreview, Message } from "@/lib/types";
+import type { ConversationPreview, Message, PendingAttachment } from "@/lib/types";
 
 interface MainChatAreaProps {
   conversation: ConversationPreview | null;
@@ -18,7 +18,8 @@ interface MainChatAreaProps {
   typingUsers: TypingUser[];
   onTypingStart: () => void;
   onTypingStop: () => void;
-  onSend: (text: string) => boolean;
+  onSend: (text: string, attachment?: PendingAttachment) => boolean;
+  onUploadFile: (file: File) => Promise<PendingAttachment>;
   composerDisabled: boolean;
   connectionState: ConnectionState;
   onBack: () => void;
@@ -40,6 +41,7 @@ export function MainChatArea({
   onTypingStart,
   onTypingStop,
   onSend,
+  onUploadFile,
   composerDisabled,
   connectionState,
   onBack,
@@ -71,7 +73,7 @@ export function MainChatArea({
           <MessageComposer
             key={conversation.id}
             onSend={onSend}
-            onAttachClick={() => onNotImplemented("Attachments")}
+            onUploadFile={onUploadFile}
             onTypingStart={onTypingStart}
             onTypingStop={onTypingStop}
             disabled={composerDisabled}
